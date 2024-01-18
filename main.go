@@ -34,6 +34,20 @@ type KrnlTask struct{}
 
 const TOKEN_AUTHORITY = "http://localhost:8080" // TODO: env
 
+func main() {
+	rpcServer := rpc.NewServer()
+
+	rpcServer.RegisterCodec(gjson.NewCodec(), "application/json")
+
+	rpcServer.RegisterService(new(KrnlTask), "")
+
+	http.Handle("/krnl", rpcServer)
+
+	log.Printf("Serving RPC server on port %d", 1337)
+
+	http.ListenAndServe("localhost:1337", nil)
+}
+
 func (t *KrnlTask) RegisterNewDapp(r *http.Request, registerDapp *RegitserDapp, reply *RegisteredDapp) error {
 	log.Println("RegisterNewDapp called")
 	registerDappPayload, err := json.Marshal(registerDapp)
@@ -42,7 +56,7 @@ func (t *KrnlTask) RegisterNewDapp(r *http.Request, registerDapp *RegitserDapp, 
 		return nil
 	}
 
-	body := callKrnlNode("/register-dapp", registerDappPayload)
+	body := callTokenAuthority("/register-dapp", registerDappPayload)
 	if err != nil {
 		fmt.Println("Error reading response body:", err)
 		return nil
@@ -67,7 +81,7 @@ func (t *KrnlTask) TxRequest(r *http.Request, txRequest *TxRequest, reply *Signa
 		return nil
 	}
 
-	body := callKrnlNode("/tx-request", txRequestPayload)
+	body := callTokenAuthority("/tx-request", txRequestPayload)
 	if err != nil {
 		fmt.Println("Error reading response body:", err)
 		return nil
@@ -84,7 +98,7 @@ func (t *KrnlTask) TxRequest(r *http.Request, txRequest *TxRequest, reply *Signa
 	return nil
 }
 
-func callKrnlNode(path string, payload []byte) []byte{
+func callTokenAuthority(path string, payload []byte) []byte{
 	req, err := http.NewRequest("POST", TOKEN_AUTHORITY + path, bytes.NewBuffer(payload))
 	if err != nil {
 		fmt.Println("Error creating request:", err)
@@ -109,18 +123,4 @@ func callKrnlNode(path string, payload []byte) []byte{
 	}
 
 	return body
-}
-
-func main() {
-	rpcServer := rpc.NewServer()
-
-	rpcServer.RegisterCodec(gjson.NewCodec(), "application/json")
-
-	rpcServer.RegisterService(new(KrnlTask), "")
-
-	http.Handle("/krnl", rpcServer)
-
-	log.Printf("Serving RPC server on port %d", 1337)
-
-	http.ListenAndServe("localhost:1337", nil)
 }
