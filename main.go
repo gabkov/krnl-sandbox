@@ -1,23 +1,23 @@
 package main
 
 import (
-	"log"
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"github.com/gorilla/rpc"
 	gjson "github.com/gorilla/rpc/json"
+	"io"
+	"log"
+	"net/http"
 )
 
 type RegitserDapp struct {
-	DappName string `json:"dappName"`
+	DappName string `json:"dappName" binding:"required"`
 }
 
 type RegisteredDapp struct {
-	AccessToken               string `json:"accessToken"`
-	TokenAuthorityPublicKey string `json:"tokenAuthorityPublicKey"`
+	AccessToken             string `json:"accessToken" binding:"required"`
+	TokenAuthorityPublicKey string `json:"tokenAuthorityPublicKey" binding:"required"`
 }
 
 type TxRequest struct {
@@ -98,8 +98,8 @@ func (t *KrnlTask) TxRequest(r *http.Request, txRequest *TxRequest, reply *Signa
 	return nil
 }
 
-func callTokenAuthority(path string, payload []byte) []byte{
-	req, err := http.NewRequest("POST", TOKEN_AUTHORITY + path, bytes.NewBuffer(payload))
+func callTokenAuthority(path string, payload []byte) []byte {
+	req, err := http.NewRequest("POST", TOKEN_AUTHORITY+path, bytes.NewBuffer(payload))
 	if err != nil {
 		fmt.Println("Error creating request:", err)
 		return nil
