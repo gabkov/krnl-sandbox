@@ -30,7 +30,7 @@ type SignatureToken struct {
 	SignatureToken string `json:"signatureToken" binding:"required"`
 }
 
-type KrnlTask int
+type KrnlTask struct{}
 
 const TOKEN_AUTHORITY = "http://localhost:8080" // TODO: env
 
@@ -42,25 +42,7 @@ func (t *KrnlTask) RegisterNewDapp(r *http.Request, registerDapp *RegitserDapp, 
 		return nil
 	}
 
-
-	req, err := http.NewRequest("POST", TOKEN_AUTHORITY + "/register-dapp", bytes.NewBuffer(registerDappPayload))
-	if err != nil {
-		fmt.Println("Error creating request:", err)
-		return nil
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		fmt.Println("Error sending request:", err)
-		return nil
-	}
-	defer resp.Body.Close()
-
-	// Read the response body
-	body, err := io.ReadAll(resp.Body)
+	body := callKrnlNode("/register-dapp", registerDappPayload)
 	if err != nil {
 		fmt.Println("Error reading response body:", err)
 		return nil
@@ -85,8 +67,25 @@ func (t *KrnlTask) TxRequest(r *http.Request, txRequest *TxRequest, reply *Signa
 		return nil
 	}
 
-	// TODO: refactor
-	req, err := http.NewRequest("POST", TOKEN_AUTHORITY + "/tx-request", bytes.NewBuffer(txRequestPayload))
+	body := callKrnlNode("/tx-request", txRequestPayload)
+	if err != nil {
+		fmt.Println("Error reading response body:", err)
+		return nil
+	}
+
+	var signatureToken SignatureToken
+	err = json.Unmarshal(body, &signatureToken)
+	if err != nil {
+		fmt.Println("error unmarshalling response JSON:", err)
+		return nil
+	}
+
+	*reply = signatureToken
+	return nil
+}
+
+func callKrnlNode(path string, payload []byte) []byte{
+	req, err := http.NewRequest("POST", TOKEN_AUTHORITY + path, bytes.NewBuffer(payload))
 	if err != nil {
 		fmt.Println("Error creating request:", err)
 		return nil
@@ -109,15 +108,7 @@ func (t *KrnlTask) TxRequest(r *http.Request, txRequest *TxRequest, reply *Signa
 		return nil
 	}
 
-	var signatureToken SignatureToken
-	err = json.Unmarshal(body, &signatureToken)
-	if err != nil {
-		fmt.Println("error unmarshalling response JSON:", err)
-		return nil
-	}
-
-	*reply = signatureToken
-	return nil
+	return body
 }
 
 func main() {
