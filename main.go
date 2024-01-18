@@ -2,13 +2,18 @@ package main
 
 import (
 	"bytes"
+	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/gorilla/rpc"
-	gjson "github.com/gorilla/rpc/json"
 	"io"
 	"log"
 	"net/http"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/gorilla/rpc"
+	gjson "github.com/gorilla/rpc/json"
 )
 
 type RegitserDapp struct {
@@ -28,6 +33,14 @@ type TxRequest struct {
 
 type SignatureToken struct {
 	SignatureToken string `json:"signatureToken" binding:"required"`
+}
+
+type RawTransaction struct {
+	RawTx string `json:"rawTx" binding:"required"`
+}
+
+type TransactionHash struct {
+	TxHash string `json:"txHash" binding:"required"`
 }
 
 type KrnlTask struct{}
@@ -95,6 +108,35 @@ func (t *KrnlTask) TxRequest(r *http.Request, txRequest *TxRequest, reply *Signa
 	}
 
 	*reply = signatureToken
+	return nil
+}
+
+func (t *KrnlTask) SendTx(r *http.Request, rawTx *RawTransaction, reply *TransactionHash) error {
+	log.Println("SendTx called")
+
+	client, err := ethclient.Dial("http://127.0.0.1:8545")
+    if err != nil {
+		fmt.Println("FOSas")
+        log.Fatal(err)
+    }
+
+    rawTxBytes, err := hex.DecodeString(rawTx.RawTx[2:])
+
+    tx := new(types.Transaction)
+    err = rlp.DecodeBytes(rawTxBytes, &tx)
+	if err != nil {
+        log.Fatal(err)
+    }
+
+    err = client.SendTransaction(context.Background(), tx)
+    if err != nil {
+		fmt.Println("FOS")
+        log.Fatal(err)
+    }
+	
+    fmt.Printf("tx sent: %s", tx.Hash().Hex()) 
+
+	*reply = TransactionHash{TxHash: tx.Hash().Hex()}
 	return nil
 }
 
