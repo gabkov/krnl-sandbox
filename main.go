@@ -20,7 +20,7 @@ type RegisteredDapp struct {
 	TokenAuthorityPublicKey string `json:"tokenAuthorityPublicKey"`
 }
 
-type SendTx struct {
+type TxRequest struct {
 	DappName  string `json:"dappName" binding:"required"`
 	Signature string `json:"signature" binding:"required"`
 	Message   string `json:"message" binding:"required"`
@@ -35,20 +35,15 @@ type KrnlTask int
 const TOKEN_AUTHORITY = "http://localhost:8080" // TODO: env
 
 func (t *KrnlTask) RegisterNewDapp(r *http.Request, registerDapp *RegitserDapp, reply *RegisteredDapp) error {
-
-	fmt.Println("LOL")
-
-	log.Printf("FOS")
-
-	payloadJSON, err := json.Marshal(registerDapp)
+	log.Println("RegisterNewDapp called")
+	registerDappPayload, err := json.Marshal(registerDapp)
 	if err != nil {
 		fmt.Println("Error marshalling JSON:", err)
 		return nil
 	}
 
-	fmt.Println(TOKEN_AUTHORITY)
 
-	req, err := http.NewRequest("POST", TOKEN_AUTHORITY + "/register-dapp", bytes.NewBuffer(payloadJSON))
+	req, err := http.NewRequest("POST", TOKEN_AUTHORITY + "/register-dapp", bytes.NewBuffer(registerDappPayload))
 	if err != nil {
 		fmt.Println("Error creating request:", err)
 		return nil
@@ -79,6 +74,49 @@ func (t *KrnlTask) RegisterNewDapp(r *http.Request, registerDapp *RegitserDapp, 
 	}
 
 	*reply = registeredDapp
+	return nil
+}
+
+func (t *KrnlTask) TxRequest(r *http.Request, txRequest *TxRequest, reply *SignatureToken) error {
+	log.Println("TxRequest called")
+	txRequestPayload, err := json.Marshal(txRequest)
+	if err != nil {
+		fmt.Println("Error marshalling JSON:", err)
+		return nil
+	}
+
+	// TODO: refactor
+	req, err := http.NewRequest("POST", TOKEN_AUTHORITY + "/tx-request", bytes.NewBuffer(txRequestPayload))
+	if err != nil {
+		fmt.Println("Error creating request:", err)
+		return nil
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Println("Error sending request:", err)
+		return nil
+	}
+	defer resp.Body.Close()
+
+	// Read the response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println("Error reading response body:", err)
+		return nil
+	}
+
+	var signatureToken SignatureToken
+	err = json.Unmarshal(body, &signatureToken)
+	if err != nil {
+		fmt.Println("error unmarshalling response JSON:", err)
+		return nil
+	}
+
+	*reply = signatureToken
 	return nil
 }
 
