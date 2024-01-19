@@ -9,6 +9,9 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strings"
+
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -114,27 +117,39 @@ func (t *KrnlTask) TxRequest(r *http.Request, txRequest *TxRequest, reply *Signa
 func (t *KrnlTask) SendTx(r *http.Request, rawTx *RawTransaction, reply *TransactionHash) error {
 	log.Println("SendTx called")
 
-	client, err := ethclient.Dial("http://127.0.0.1:8545")
-    if err != nil {
-		fmt.Println("FOSas")
-        log.Fatal(err)
-    }
-
-    rawTxBytes, err := hex.DecodeString(rawTx.RawTx[2:])
-
-    tx := new(types.Transaction)
-    err = rlp.DecodeBytes(rawTxBytes, &tx)
+	client, err := ethclient.Dial("http://127.0.0.1:8545") // TODO: env or parameter
 	if err != nil {
-        log.Fatal(err)
-    }
+		log.Fatal(err)
+	}
 
-    err = client.SendTransaction(context.Background(), tx)
-    if err != nil {
-		fmt.Println("FOS")
-        log.Fatal(err)
-    }
-	
-    fmt.Printf("tx sent: %s", tx.Hash().Hex()) 
+	rawTxBytes, err := hex.DecodeString(rawTx.RawTx[2:])
+
+	tx := new(types.Transaction)
+	err = rlp.DecodeBytes(rawTxBytes, &tx)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Simulate stopping tx here
+	// grabbing the requested FaaS services from the end of the input-data
+	separator := "000000000000000000000000000000000000000000000000000000000000003a" // :
+	res := strings.Split(hexutil.Encode(tx.Data()), separator)
+
+	if len(res) > 1 {
+		faas, err := hex.DecodeString(res[1])
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Println("Requested faas:", string(faas))
+		// do the Faas here ...
+	}
+
+	err = client.SendTransaction(context.Background(), tx)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf("tx sent: %s", tx.Hash().Hex())
 
 	*reply = TransactionHash{TxHash: tx.Hash().Hex()}
 	return nil
