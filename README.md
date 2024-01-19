@@ -15,4 +15,4 @@ Calls the token authority and registers the dapp. Returns the `accessToken` and 
 ### KrnlTask.TxRequest
 Calls the token authority to request a `signatureToken`. The dapp name, `accessToken` and the `message` must to be provided to make this call.
 ### KrnlTask.SendTx
-Broadcasts the signed `rawTransaction` and extracts the FaaS requests if any. 
+Broadcasts the signed `rawTransaction` and extracts the provided (if any) FaaS message form the data-input. 
