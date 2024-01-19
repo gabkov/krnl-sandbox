@@ -29,9 +29,9 @@ type RegisteredDapp struct {
 }
 
 type TxRequest struct {
-	DappName  string `json:"dappName" binding:"required"`
-	Signature string `json:"signature" binding:"required"`
-	Message   string `json:"message" binding:"required"`
+	DappName    string `json:"dappName" binding:"required"`
+	AccessToken string `json:"accessToken" binding:"required"`
+	Message     string `json:"message" binding:"required"`
 }
 
 type SignatureToken struct {
@@ -135,6 +135,7 @@ func (t *KrnlTask) SendTx(r *http.Request, rawTx *RawTransaction, reply *Transac
 	separator := "000000000000000000000000000000000000000000000000000000000000003a" // :
 	res := strings.Split(hexutil.Encode(tx.Data()), separator)
 
+	// if len is more than 1 some message is concatenated to the end of the input-data
 	if len(res) > 1 {
 		faas, err := hex.DecodeString(res[1])
 		if err != nil {
