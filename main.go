@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -73,9 +74,8 @@ func (t *KrnlTask) RegisterNewDapp(r *http.Request, registerDapp *RegitserDapp, 
 	}
 
 	body := callTokenAuthority("/register-dapp", registerDappPayload)
-	if err != nil {
-		fmt.Println("Error reading response body:", err)
-		return nil
+	if body == nil {
+		return errors.New("Transaction rejected: invalid access token")
 	}
 
 	var registeredDapp RegisteredDapp
@@ -98,9 +98,8 @@ func (t *KrnlTask) TxRequest(r *http.Request, txRequest *TxRequest, reply *Signa
 	}
 
 	body := callTokenAuthority("/tx-request", txRequestPayload)
-	if err != nil {
-		fmt.Println("Error reading response body:", err)
-		return nil
+	if body == nil {
+		return errors.New("Transaction rejected: invalid access token")
 	}
 
 	var signatureToken SignatureToken
@@ -172,6 +171,10 @@ func callTokenAuthority(path string, payload []byte) []byte {
 		return nil
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode == 401 {
+		return nil
+	}
 
 	// Read the response body
 	body, err := io.ReadAll(resp.Body)
