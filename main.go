@@ -20,7 +20,7 @@ import (
 	gjson "github.com/gorilla/rpc/json"
 )
 
-type RegitserDapp struct {
+type RegisterDapp struct {
 	DappName string `json:"dappName" binding:"required"`
 }
 
@@ -65,7 +65,7 @@ func main() {
 	http.ListenAndServe("localhost:1337", nil)
 }
 
-func (t *KrnlTask) RegisterNewDapp(r *http.Request, registerDapp *RegitserDapp, reply *RegisteredDapp) error {
+func (t *KrnlTask) RegisterNewDapp(r *http.Request, registerDapp *RegisterDapp, reply *RegisteredDapp) error {
 	log.Println("RegisterNewDapp called")
 	registerDappPayload, err := json.Marshal(registerDapp)
 	if err != nil {
