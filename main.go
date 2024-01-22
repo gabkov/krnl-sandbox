@@ -136,11 +136,11 @@ func (t *KrnlTask) SendTx(r *http.Request, rawTx *RawTransaction, reply *Transac
 
 	// if len is more than 1 some message is concatenated to the end of the input-data
 	if len(res) > 1 {
-		faas, err := hex.DecodeString(res[1])
+		faas, err := hex.DecodeString(res[1]) // TODO: handle multiple msg
 		if err != nil {
 			log.Fatal(err)
 		}
-		log.Println("Requested faas:", string(faas))
+		log.Println("Requested FaaS:", string(faas))
 		// do the Faas here ...
 	}
 
