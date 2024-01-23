@@ -74,9 +74,6 @@ func (t *KrnlTask) RegisterNewDapp(r *http.Request, registerDapp *RegisterDapp, 
 	}
 
 	body := callTokenAuthority("/register-dapp", registerDappPayload)
-	if body == nil {
-		return errors.New("Transaction rejected: invalid access token")
-	}
 
 	var registeredDapp RegisteredDapp
 	err = json.Unmarshal(body, &registeredDapp)
@@ -99,7 +96,7 @@ func (t *KrnlTask) TxRequest(r *http.Request, txRequest *TxRequest, reply *Signa
 
 	body := callTokenAuthority("/tx-request", txRequestPayload)
 	if body == nil {
-		return errors.New("Transaction rejected: invalid access token")
+		return errors.New("Transaction rejected: invalid access token") // reject
 	}
 
 	var signatureToken SignatureToken
