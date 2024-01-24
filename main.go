@@ -1,10 +1,10 @@
 package main
 
 import (
-	"net/http"
 	hs "github.com/gabkov/krnl-node/httpserver"
 	"github.com/gabkov/krnl-node/rpc"
 	"github.com/gabkov/krnl-node/service"
+	"net/http"
 )
 
 func main() {
