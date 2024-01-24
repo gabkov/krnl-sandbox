@@ -3,10 +3,9 @@ package service
 import (
 	"context"
 	"log"
-
+	"github.com/gabkov/krnl-node/client"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/params"
 )
 
@@ -17,13 +16,10 @@ func (t *Eth) ChainId() int {
 }
 
 func (t *Eth) GetBlockByNumber(blockTag string, includeTx bool) (map[string]interface{}, error) {
-	client, err := ethclient.Dial("http://127.0.0.1:8545")
-	if err != nil {
-		log.Fatal(err)
-	}
+	client := client.GetClient()
 
 	var head *types.Header
-	err = client.Client().CallContext(context.Background(), &head, "eth_getBlockByNumber", blockTag, includeTx)
+	err := client.Client().CallContext(context.Background(), &head, "eth_getBlockByNumber", blockTag, includeTx)
 	if err != nil {
 		log.Println("can't get latest block:", err)
 		return make(map[string]interface{}), err
@@ -38,10 +34,7 @@ func (t *Eth) GetBlockByNumber(blockTag string, includeTx bool) (map[string]inte
 }
 
 func (t *Eth) GetTransactionCount(account common.Address, blockTag string) (uint64, error) {
-	client, err := ethclient.Dial("http://127.0.0.1:8545")
-	if err != nil {
-		log.Fatal(err)
-	}
+	client := client.GetClient()
 
 	return client.NonceAt(context.Background(), account, nil)
 }

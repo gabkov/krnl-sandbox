@@ -11,10 +11,9 @@ import (
 	"log"
 	"net/http"
 	"strings"
-
+	"github.com/gabkov/krnl-node/client"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -93,10 +92,7 @@ func (t *Krnl) TxRequest(txRequest *TxRequest) (SignatureToken, error) {
 func (t *Krnl) SendTx(rawTx *RawTransaction) (TransactionHash, error) {
 	log.Println("SendTx called")
 
-	client, err := ethclient.Dial("http://127.0.0.1:8545") // TODO: env or parameter
-	if err != nil {
-		log.Fatal(err)
-	}
+	client := client.GetClient()
 
 	rawTxBytes, err := hex.DecodeString(rawTx.RawTx[2:])
 
