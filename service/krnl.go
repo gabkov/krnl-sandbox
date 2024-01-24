@@ -49,6 +49,8 @@ type Krnl struct{}
 
 const TOKEN_AUTHORITY = "http://localhost:8080" // TODO: env
 
+
+// note: probably not going to be part of the node
 func (t *Krnl) RegisterNewDapp(registerDapp *RegisterDapp) RegisteredDapp {
 	log.Println("RegisterNewDapp called")
 	registerDappPayload, err := json.Marshal(registerDapp)
