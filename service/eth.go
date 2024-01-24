@@ -36,5 +36,5 @@ func (t *Eth) GetBlockByNumber(blockTag string, includeTx bool) (map[string]inte
 func (t *Eth) GetTransactionCount(account common.Address, blockTag string) (uint64, error) {
 	client := client.GetClient()
 
-	return client.NonceAt(context.Background(), account, nil)
+	return client.NonceAt(context.Background(), account, nil) // nil means lates and ethers.js asks for latest
 }
