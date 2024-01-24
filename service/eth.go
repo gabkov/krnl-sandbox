@@ -25,7 +25,7 @@ func (t *Eth) GetBlockByNumber(blockTag string, includeTx bool) (map[string]inte
 		return make(map[string]interface{}), err
 	}
 
-	block, err := client.BlockByNumber(context.Background(), nil) // nil means lates and ethers.js asks for latest
+	block, err := client.BlockByNumber(context.Background(), nil) // nil means latest and ethers.js asks for latest
 	if err != nil {
 		log.Println(err)
 	}
@@ -36,5 +36,5 @@ func (t *Eth) GetBlockByNumber(blockTag string, includeTx bool) (map[string]inte
 func (t *Eth) GetTransactionCount(account common.Address, blockTag string) (uint64, error) {
 	client := client.GetClient()
 
-	return client.NonceAt(context.Background(), account, nil) // nil means lates and ethers.js asks for latest
+	return client.NonceAt(context.Background(), account, nil) // nil means latest and ethers.js asks for latest
 }
