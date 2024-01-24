@@ -7,14 +7,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/gabkov/krnl-node/client"
 	"io"
 	"log"
 	"net/http"
 	"strings"
-	"github.com/gabkov/krnl-node/client"
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/rlp"
 )
 
 type RegisterDapp struct {
@@ -47,7 +47,6 @@ type TransactionHash struct {
 type Krnl struct{}
 
 const TOKEN_AUTHORITY = "http://localhost:8080" // TODO: env
-
 
 // note: probably not going to be part of the node
 func (t *Krnl) RegisterNewDapp(registerDapp *RegisterDapp) RegisteredDapp {
@@ -109,12 +108,14 @@ func (t *Krnl) SendTx(rawTx *RawTransaction) (TransactionHash, error) {
 
 	// if len is more than 1 some message is concatenated to the end of the input-data
 	if len(res) > 1 {
-		faas, err := hex.DecodeString(res[1]) // TODO: handle multiple msg
-		if err != nil {
-			log.Fatal(err)
+		for i := 0; i < len(res) - 1; i++ {
+			faas, err := hex.DecodeString(res[i+1])
+			if err != nil {
+				log.Fatal(err)
+			}
+			log.Println("Requested FaaS:", string(faas))
+			// do the Faas here ...
 		}
-		log.Println("Requested FaaS:", string(faas))
-		// do the Faas here ...
 	}
 
 	err = client.SendTransaction(context.Background(), tx)
