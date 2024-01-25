@@ -3,10 +3,12 @@ package service
 import (
 	"context"
 	"log"
-	"github.com/gabkov/krnl-node/client"
+
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/gabkov/krnl-node/client"
 )
 
 type Eth struct{}
@@ -37,4 +39,17 @@ func (t *Eth) GetTransactionCount(account common.Address, blockTag string) (uint
 	client := client.GetClient()
 
 	return client.NonceAt(context.Background(), account, nil) // nil means latest and ethers.js asks for latest
+}
+
+func (t *Eth) EstimateGas(ethCallMsg map[string]interface{}) (uint64, error) {
+	client := client.GetClient()
+
+	var hex hexutil.Uint64
+	err := client.Client().CallContext(context.Background(), &hex, "eth_estimateGas", ethCallMsg)
+	
+	if err != nil {
+		return 0, err
+	}
+	
+	return uint64(hex), nil
 }

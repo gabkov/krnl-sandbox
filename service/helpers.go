@@ -9,7 +9,6 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 )
 
-
 // RPCTransaction represents a transaction that will serialize to the RPC representation of a transaction
 type RPCTransaction struct {
 	BlockHash           *common.Hash      `json:"blockHash"`

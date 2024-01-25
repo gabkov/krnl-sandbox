@@ -88,6 +88,8 @@ func (t *Krnl) TxRequest(txRequest *TxRequest) (SignatureToken, error) {
 	return signatureToken, nil
 }
 
+
+// TODO: accessToken Required?
 func (t *Krnl) SendTx(rawTx *RawTransaction) (TransactionHash, error) {
 	log.Println("SendTx called")
 
