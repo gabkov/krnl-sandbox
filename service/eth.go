@@ -50,6 +50,18 @@ func (t *Eth) EstimateGas(ethCallMsg map[string]interface{}) (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	
+
 	return uint64(hex), nil
+}
+
+func (t *Eth) Call(ethCallMsg map[string]interface{}, blockTag string) (string, error) {
+	client := client.GetClient()
+
+	var hex hexutil.Bytes
+	err := client.Client().CallContext(context.Background(), &hex, "eth_call", ethCallMsg, nil)
+	if err != nil {
+		return "", err
+	}
+	
+	return hex.String(), nil
 }
