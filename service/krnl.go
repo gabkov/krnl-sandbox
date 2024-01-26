@@ -6,10 +6,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/gabkov/krnl-node/client"
 	"io"
 	"log"
@@ -36,13 +34,6 @@ type SignatureToken struct {
 	SignatureToken string `json:"signatureToken" binding:"required"`
 }
 
-type RawTransaction struct {
-	RawTx string `json:"rawTx" binding:"required"`
-}
-
-type TransactionHash struct {
-	TxHash string `json:"txHash" binding:"required"`
-}
 
 type Krnl struct{}
 
@@ -50,10 +41,10 @@ const TOKEN_AUTHORITY = "http://localhost:8080" // TODO: env
 
 // note: probably not going to be part of the node
 func (t *Krnl) RegisterNewDapp(registerDapp *RegisterDapp) RegisteredDapp {
-	log.Println("RegisterNewDapp called")
+	log.Println("krnl_registerNewDapp called")
 	registerDappPayload, err := json.Marshal(registerDapp)
 	if err != nil {
-		fmt.Println("Error marshalling JSON:", err)
+		log.Println("Error marshalling JSON:", err)
 	}
 
 	body := callTokenAuthority("/register-dapp", registerDappPayload)
@@ -61,17 +52,17 @@ func (t *Krnl) RegisterNewDapp(registerDapp *RegisterDapp) RegisteredDapp {
 	var registeredDapp RegisteredDapp
 	err = json.Unmarshal(body, &registeredDapp)
 	if err != nil {
-		fmt.Println("error unmarshalling response JSON:", err)
+		log.Println("error unmarshalling response JSON:", err)
 	}
 
 	return registeredDapp
 }
 
 func (t *Krnl) TxRequest(txRequest *TxRequest) (SignatureToken, error) {
-	log.Println("TxRequest called")
+	log.Println("krnl_txRequest called")
 	txRequestPayload, err := json.Marshal(txRequest)
 	if err != nil {
-		fmt.Println("Error marshalling JSON:", err)
+		log.Println("Error marshalling JSON:", err)
 	}
 
 	body := callTokenAuthority("/tx-request", txRequestPayload)
@@ -82,7 +73,7 @@ func (t *Krnl) TxRequest(txRequest *TxRequest) (SignatureToken, error) {
 	var signatureToken SignatureToken
 	err = json.Unmarshal(body, &signatureToken)
 	if err != nil {
-		fmt.Println("error unmarshalling response JSON:", err)
+		log.Println("error unmarshalling response JSON:", err)
 	}
 
 	return signatureToken, nil
@@ -90,18 +81,18 @@ func (t *Krnl) TxRequest(txRequest *TxRequest) (SignatureToken, error) {
 
 
 // TODO: accessToken Required?
-func (t *Krnl) SendTx(rawTx *RawTransaction) (TransactionHash, error) {
-	log.Println("SendTx called")
+func (t *Krnl) SendRawTransaction(rawTx string) (string, error) {
+	log.Println("krnl_sendRawTransaction called")
 
 	client := client.GetClient()
 
-	rawTxBytes, err := hex.DecodeString(rawTx.RawTx[2:])
+	rawTxBytes, err := hex.DecodeString(rawTx[2:])
 
 	tx := new(types.Transaction)
-	err = rlp.DecodeBytes(rawTxBytes, &tx)
-	if err != nil {
-		log.Fatal(err)
-	}
+	err = tx.UnmarshalBinary(rawTxBytes)
+    if err != nil {
+        log.Fatal("err:", err)
+    }
 
 	// Simulate stopping tx here
 	// grabbing the requested FaaS services from the end of the input-data
@@ -123,18 +114,18 @@ func (t *Krnl) SendTx(rawTx *RawTransaction) (TransactionHash, error) {
 	err = client.SendTransaction(context.Background(), tx)
 	if err != nil {
 		log.Println(err)
-		return TransactionHash{}, err
+		return "", err
 	}
 
-	fmt.Printf("tx sent: %s", tx.Hash().Hex())
+	log.Printf("tx sent: %s", tx.Hash().Hex())
 
-	return TransactionHash{TxHash: tx.Hash().Hex()}, nil
+	return tx.Hash().Hex(), nil
 }
 
 func callTokenAuthority(path string, payload []byte) []byte {
 	req, err := http.NewRequest("POST", TOKEN_AUTHORITY+path, bytes.NewBuffer(payload))
 	if err != nil {
-		fmt.Println("Error creating request:", err)
+		log.Println("Error creating request:", err)
 		return nil
 	}
 
@@ -143,7 +134,7 @@ func callTokenAuthority(path string, payload []byte) []byte {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Println("Error sending request:", err)
+		log.Println("Error sending request:", err)
 		return nil
 	}
 	defer resp.Body.Close()
@@ -155,7 +146,7 @@ func callTokenAuthority(path string, payload []byte) []byte {
 	// Read the response body
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		fmt.Println("Error reading response body:", err)
+		log.Println("Error reading response body:", err)
 		return nil
 	}
 
