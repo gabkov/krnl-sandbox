@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/hex"
 	"log"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -46,7 +47,7 @@ func (t *Eth) EstimateGas(ethCallMsg map[string]interface{}) (uint64, error) {
 
 	var hex hexutil.Uint64
 	err := client.Client().CallContext(context.Background(), &hex, "eth_estimateGas", ethCallMsg)
-	
+
 	if err != nil {
 		return 0, err
 	}
@@ -62,6 +63,33 @@ func (t *Eth) Call(ethCallMsg map[string]interface{}, blockTag string) (string, 
 	if err != nil {
 		return "", err
 	}
-	
+
 	return hex.String(), nil
+}
+
+func (t *Eth) SendRawTransaction(tx string) (string, error) {
+	client := client.GetClient()
+
+	rawTxBytes, err := hex.DecodeString(tx[2:])
+
+	txparsed := new(types.Transaction)
+
+
+	err = txparsed.UnmarshalBinary(rawTxBytes)
+    if err != nil {
+        log.Println("err:", err)
+    }
+
+	err = client.SendTransaction(context.Background(), txparsed)
+	if err != nil {
+		log.Println(err)
+		return "" ,err
+	}
+
+	return txparsed.Hash().Hex(), nil
+}
+
+func (t *Eth) BlockNumber(ctx context.Context) (uint64, error) {
+	client := client.GetClient()
+	return client.BlockNumber(context.Background())
 }
