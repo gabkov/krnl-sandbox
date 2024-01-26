@@ -25,13 +25,13 @@ type RegisteredDapp struct {
 }
 
 type TxRequest struct {
-	DappName    string `json:"dappName" binding:"required"`
 	AccessToken string `json:"accessToken" binding:"required"`
 	Message     string `json:"message" binding:"required"`
 }
 
 type SignatureToken struct {
 	SignatureToken string `json:"signatureToken" binding:"required"`
+	Hash           string `json:"hash" binding:"required"`
 }
 
 
