@@ -95,8 +95,14 @@ func (t *Eth) SendRawTransaction(tx string) (string, error) {
 	return txparsed.Hash().Hex(), nil
 }
 
-func (t *Eth) BlockNumber(ctx context.Context) (uint64, error) {
+func (t *Eth) BlockNumber() (uint64, error) {
 	log.Println("eth_blockNumber called")
 	client := client.GetClient()
 	return client.BlockNumber(context.Background())
+}
+
+func (t *Eth) GetTransactionReceipt(txHash common.Hash) (*types.Receipt, error) {
+	log.Println("eth_getTransactionReceipt called")
+	client := client.GetClient()
+	return client.TransactionReceipt(context.Background(), txHash)
 }
