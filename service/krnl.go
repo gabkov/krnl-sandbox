@@ -39,24 +39,6 @@ type Krnl struct{}
 
 const TOKEN_AUTHORITY = "http://localhost:8080" // TODO: env
 
-// note: probably not going to be part of the node
-func (t *Krnl) RegisterNewDapp(registerDapp *RegisterDapp) RegisteredDapp {
-	log.Println("krnl_registerNewDapp")
-	registerDappPayload, err := json.Marshal(registerDapp)
-	if err != nil {
-		log.Println("Error marshalling JSON:", err)
-	}
-
-	body := callTokenAuthority("/register-dapp", registerDappPayload)
-
-	var registeredDapp RegisteredDapp
-	err = json.Unmarshal(body, &registeredDapp)
-	if err != nil {
-		log.Println("error unmarshalling response JSON:", err)
-	}
-
-	return registeredDapp
-}
 
 func (t *Krnl) TxRequest(txRequest *TxRequest) (SignatureToken, error) {
 	log.Println("krnl_txRequest")
@@ -65,9 +47,9 @@ func (t *Krnl) TxRequest(txRequest *TxRequest) (SignatureToken, error) {
 		log.Println("Error marshalling JSON:", err)
 	}
 
-	body := callTokenAuthority("/tx-request", txRequestPayload)
-	if body == nil {
-		return SignatureToken{}, errors.New("Transaction rejected: invalid access token") // reject
+	body, err := callTokenAuthority("/tx-request", txRequestPayload)
+	if err != nil {
+		return SignatureToken{}, errors.New(err.Error()) // reject or error``
 	}
 
 	var signatureToken SignatureToken
@@ -80,7 +62,6 @@ func (t *Krnl) TxRequest(txRequest *TxRequest) (SignatureToken, error) {
 }
 
 
-// TODO: accessToken Required?
 func (t *Krnl) SendRawTransaction(rawTx string) (string, error) {
 	log.Println("krnl_sendRawTransaction")
 
@@ -122,11 +103,11 @@ func (t *Krnl) SendRawTransaction(rawTx string) (string, error) {
 	return tx.Hash().Hex(), nil
 }
 
-func callTokenAuthority(path string, payload []byte) []byte {
+func callTokenAuthority(path string, payload []byte) ([]byte, error) {
 	req, err := http.NewRequest("POST", TOKEN_AUTHORITY+path, bytes.NewBuffer(payload))
 	if err != nil {
 		log.Println("Error creating request:", err)
-		return nil
+		return nil, err
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -135,20 +116,20 @@ func callTokenAuthority(path string, payload []byte) []byte {
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Println("Error sending request:", err)
-		return nil
+		return nil, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode == 401 {
-		return nil
+		return nil, errors.New("Transaction rejected: invalid access token")
 	}
 
 	// Read the response body
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Println("Error reading response body:", err)
-		return nil
+		return nil, err
 	}
 
-	return body
+	return body, nil
 }
