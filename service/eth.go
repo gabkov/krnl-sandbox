@@ -15,12 +15,12 @@ import (
 type Eth struct{}
 
 func (t *Eth) ChainId() int {
-	log.Println("eth_chainId called")
+	// log.Println("eth_chainId") // commenting it out too many logs
 	return 31337 // hardhat network
 }
 
 func (t *Eth) GetBlockByNumber(blockTag string, includeTx bool) (map[string]interface{}, error) {
-	log.Println("eth_getBlockByNumber called")
+	log.Println("eth_getBlockByNumber")
 	client := client.GetClient()
 
 	var head *types.Header
@@ -39,14 +39,14 @@ func (t *Eth) GetBlockByNumber(blockTag string, includeTx bool) (map[string]inte
 }
 
 func (t *Eth) GetTransactionCount(account common.Address, blockTag string) (uint64, error) {
-	log.Println("eth_getTransactionCount called")
+	log.Println("eth_getTransactionCount")
 	client := client.GetClient()
 
 	return client.NonceAt(context.Background(), account, nil) // nil means latest and ethers.js asks for latest
 }
 
 func (t *Eth) EstimateGas(ethCallMsg map[string]interface{}) (uint64, error) {
-	log.Println("eth_estimateGas called")
+	log.Println("eth_estimateGas")
 	client := client.GetClient()
 
 	var hex hexutil.Uint64
@@ -60,7 +60,7 @@ func (t *Eth) EstimateGas(ethCallMsg map[string]interface{}) (uint64, error) {
 }
 
 func (t *Eth) Call(ethCallMsg map[string]interface{}, blockTag string) (string, error) {
-	log.Println("eth_call called")
+	log.Println("eth_call")
 	client := client.GetClient()
 
 	var hex hexutil.Bytes
@@ -73,7 +73,7 @@ func (t *Eth) Call(ethCallMsg map[string]interface{}, blockTag string) (string, 
 }
 
 func (t *Eth) SendRawTransaction(tx string) (string, error) {
-	log.Println("eth_sendRawTransaction called")
+	log.Println("eth_sendRawTransaction")
 	client := client.GetClient()
 
 	rawTxBytes, err := hex.DecodeString(tx[2:])
@@ -96,13 +96,13 @@ func (t *Eth) SendRawTransaction(tx string) (string, error) {
 }
 
 func (t *Eth) BlockNumber() (uint64, error) {
-	log.Println("eth_blockNumber called")
+	log.Println("eth_blockNumber")
 	client := client.GetClient()
 	return client.BlockNumber(context.Background())
 }
 
 func (t *Eth) GetTransactionReceipt(txHash common.Hash) (*types.Receipt, error) {
-	log.Println("eth_getTransactionReceipt called")
+	log.Println("eth_getTransactionReceipt")
 	client := client.GetClient()
 	return client.TransactionReceipt(context.Background(), txHash)
 }

@@ -41,7 +41,7 @@ const TOKEN_AUTHORITY = "http://localhost:8080" // TODO: env
 
 // note: probably not going to be part of the node
 func (t *Krnl) RegisterNewDapp(registerDapp *RegisterDapp) RegisteredDapp {
-	log.Println("krnl_registerNewDapp called")
+	log.Println("krnl_registerNewDapp")
 	registerDappPayload, err := json.Marshal(registerDapp)
 	if err != nil {
 		log.Println("Error marshalling JSON:", err)
@@ -59,7 +59,7 @@ func (t *Krnl) RegisterNewDapp(registerDapp *RegisterDapp) RegisteredDapp {
 }
 
 func (t *Krnl) TxRequest(txRequest *TxRequest) (SignatureToken, error) {
-	log.Println("krnl_txRequest called")
+	log.Println("krnl_txRequest")
 	txRequestPayload, err := json.Marshal(txRequest)
 	if err != nil {
 		log.Println("Error marshalling JSON:", err)
@@ -82,7 +82,7 @@ func (t *Krnl) TxRequest(txRequest *TxRequest) (SignatureToken, error) {
 
 // TODO: accessToken Required?
 func (t *Krnl) SendRawTransaction(rawTx string) (string, error) {
-	log.Println("krnl_sendRawTransaction called")
+	log.Println("krnl_sendRawTransaction")
 
 	client := client.GetClient()
 
