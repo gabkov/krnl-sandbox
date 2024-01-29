@@ -40,8 +40,8 @@ type Krnl struct{}
 const TOKEN_AUTHORITY = "http://localhost:8080" // TODO: env
 
 
-func (t *Krnl) TxRequest(txRequest *TxRequest) (SignatureToken, error) {
-	log.Println("krnl_txRequest")
+func (t *Krnl) TransactionRequest(txRequest *TxRequest) (SignatureToken, error) {
+	log.Println("krnl_transactionRequest")
 	txRequestPayload, err := json.Marshal(txRequest)
 	if err != nil {
 		log.Println("Error marshalling JSON:", err)
