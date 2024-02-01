@@ -164,13 +164,14 @@ func (t *Eth) FeeHistory(blockCount string, lastBlock string, rewardPercentiles 
 	}, nil
 }
 
-func (t *Eth) Call(ethCallMsg map[string]interface{}, blockTag string) (string, error) {
+func (t *Eth) Call(ethCallMsg map[string]interface{}, blockNumber *big.Int) (string, error) {
 	log.Println("eth_call")
 	client := client.GetClient()
 
 	var hex hexutil.Bytes
-	err := client.Client().CallContext(context.Background(), &hex, "eth_call", ethCallMsg, nil)
+	err := client.Client().CallContext(context.Background(), &hex, "eth_call", ethCallMsg, toBlockNumArg(blockNumber))
 	if err != nil {
+		log.Println(err)
 		return "", err
 	}
 
