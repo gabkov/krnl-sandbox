@@ -18,6 +18,10 @@ func main() {
 		panic(err)
 	}
 
+	if err := srv.RegisterName("net", new(service.Net)); err != nil {
+		panic(err)
+	}
+
 	httpsrv := hs.NewHttpServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		srv.ServeHTTP(w, r)
 	}))
