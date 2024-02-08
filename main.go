@@ -7,6 +7,10 @@ import (
 	"net/http"
 )
 
+/*
+Author: Gabor Kovacs | gabor.kovacs995@gmail.com | gabkov
+*/
+
 func main() {
 	srv := rpc.NewServer()
 

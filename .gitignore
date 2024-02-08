@@ -26,5 +26,7 @@ go.work
 
 # End of https://www.toptal.com/developers/gitignore/api/go
 
-secrets.json
 node_modules
+
+# ignore binary
+krnl_node
