@@ -6,13 +6,15 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/gabkov/krnl-node/client"
 	"io"
 	"log"
 	"net/http"
 	"strings"
+
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/gabkov/krnl-node/client"
+	"github.com/gabkov/krnl-node/faas"
 )
 
 type RegisterDapp struct {
@@ -34,11 +36,9 @@ type SignatureToken struct {
 	Hash           string `json:"hash" binding:"required"`
 }
 
-
 type Krnl struct{}
 
 const TOKEN_AUTHORITY = "http://localhost:8080" // TODO: env
-
 
 func (t *Krnl) TransactionRequest(txRequest *TxRequest) (SignatureToken, error) {
 	log.Println("krnl_transactionRequest")
@@ -49,6 +49,7 @@ func (t *Krnl) TransactionRequest(txRequest *TxRequest) (SignatureToken, error) 
 
 	body, err := callTokenAuthority("/tx-request", txRequestPayload)
 	if err != nil {
+		log.Println(err)
 		return SignatureToken{}, errors.New(err.Error()) // reject or error``
 	}
 
@@ -61,7 +62,6 @@ func (t *Krnl) TransactionRequest(txRequest *TxRequest) (SignatureToken, error) 
 	return signatureToken, nil
 }
 
-
 func (t *Krnl) SendRawTransaction(rawTx string) (string, error) {
 	log.Println("krnl_sendRawTransaction")
 
@@ -71,9 +71,9 @@ func (t *Krnl) SendRawTransaction(rawTx string) (string, error) {
 
 	tx := new(types.Transaction)
 	err = tx.UnmarshalBinary(rawTxBytes)
-    if err != nil {
-        log.Fatal("err:", err)
-    }
+	if err != nil {
+		log.Fatal("err:", err)
+	}
 
 	// Simulate stopping tx here
 	// grabbing the requested FaaS services from the end of the input-data
@@ -82,13 +82,16 @@ func (t *Krnl) SendRawTransaction(rawTx string) (string, error) {
 
 	// if len is more than 1 some message is concatenated to the end of the input-data
 	if len(res) > 1 {
-		for i := 0; i < len(res) - 1; i++ {
-			faas, err := hex.DecodeString(res[i+1])
+		for i := 1; i < len(res); i++ {
+			faasRequest, err := hex.DecodeString(res[i])
 			if err != nil {
 				log.Fatal(err)
 			}
-			log.Println("Requested FaaS:", string(faas))
-			// do the Faas here ...
+			err = faas.CallService(string(bytes.Trim(faasRequest, "\x00")), tx)
+			if err != nil {
+				log.Println(err)
+				return "", err
+			}
 		}
 	}
 
