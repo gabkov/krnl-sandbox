@@ -1,25 +1,19 @@
-# Use an official Node runtime as a parent image
-FROM node:latest
+FROM node:18
 
-# Set working directory
 WORKDIR /app
+COPY start.sh start.sh
 
-# Install Hardhat globally
 RUN npm install -g hardhat
 
-# Install any other dependencies required for your Go server
-# Install Go
-# Install any dependencies for your Go server
+RUN apt-get update && apt-get install -y golang-go
 
-# Copy the Go server code into the container
-COPY ./ /app/go_server
+COPY ./ /app
 
-# Install dependencies and build your Go server (commands depend on your Go project structure)
-WORKDIR /app/go_server
+WORKDIR /app/krnl
 RUN go mod tidy && go build -o krnl_node .
 
-# Expose necessary ports for Hardhat node and Go server
-EXPOSE 8080
 
-# For running both Hardhat node and Go server
-CMD ["sh", "-c", "npx hardhat node & ./go_server/krnl_node"]
+WORKDIR /app
+
+RUN chmod +x start.sh
+ENTRYPOINT [ "bash", "-c", "./start.sh" ]

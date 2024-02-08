@@ -38,7 +38,7 @@ type SignatureToken struct {
 
 type Krnl struct{}
 
-const TOKEN_AUTHORITY = "http://localhost:8080" // TODO: env
+const TOKEN_AUTHORITY = "http://host.docker.internal:8181" // TODO: env + conditional
 
 func (t *Krnl) TransactionRequest(txRequest *TxRequest) (SignatureToken, error) {
 	log.Println("krnl_transactionRequest")

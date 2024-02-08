@@ -70,7 +70,7 @@ func NewUnstartedServer(handler http.Handler) *HttpServer {
 }
 
 func newLocalListener() net.Listener {
-	l, err := net.Listen("tcp", "127.0.0.1:1234")
+	l, err := net.Listen("tcp", "0.0.0.0:8080")
 	if err != nil {
 		if l, err = net.Listen("tcp6", "[::1]:0"); err != nil {
 			panic(fmt.Sprintf("httptest: failed to listen on a port: %v", err))
