@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -37,8 +38,6 @@ type SignatureToken struct {
 }
 
 type Krnl struct{}
-
-const TOKEN_AUTHORITY = "http://host.docker.internal:8181" // TODO: env + conditional
 
 func (t *Krnl) TransactionRequest(txRequest *TxRequest) (SignatureToken, error) {
 	log.Println("krnl_transactionRequest")
@@ -107,7 +106,11 @@ func (t *Krnl) SendRawTransaction(rawTx string) (string, error) {
 }
 
 func callTokenAuthority(path string, payload []byte) ([]byte, error) {
-	req, err := http.NewRequest("POST", TOKEN_AUTHORITY+path, bytes.NewBuffer(payload))
+	tokenAuthority := os.Getenv("TOKEN_AUTHORITY")
+	if tokenAuthority == "" {
+		tokenAuthority = "http://127.0.0.1:8181" // local run
+	}
+	req, err := http.NewRequest("POST", tokenAuthority+path, bytes.NewBuffer(payload))
 	if err != nil {
 		log.Println("Error creating request:", err)
 		return nil, err

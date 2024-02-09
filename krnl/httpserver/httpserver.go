@@ -7,6 +7,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -70,7 +71,11 @@ func NewUnstartedServer(handler http.Handler) *HttpServer {
 }
 
 func newLocalListener() net.Listener {
-	l, err := net.Listen("tcp", "0.0.0.0:8080")
+	hostedAt := os.Getenv("HOSTED_AT")
+	if hostedAt == ""{
+		hostedAt = "127.0.0.1:8080" // local run
+	}
+	l, err := net.Listen("tcp", hostedAt)
 	if err != nil {
 		if l, err = net.Listen("tcp6", "[::1]:0"); err != nil {
 			panic(fmt.Sprintf("httptest: failed to listen on a port: %v", err))
