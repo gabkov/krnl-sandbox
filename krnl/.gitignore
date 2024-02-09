@@ -30,5 +30,3 @@ node_modules
 
 # ignore binary
 krnl_node
-
-secrets.json

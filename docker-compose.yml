@@ -1,11 +1,18 @@
 version: '3'
-
+name: krnl
 services:
   krnl-node:
+    container_name: krnl-node
     build: ./krnl/.
     ports:
       - "8080:8080"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     env_file:
-        - .env
+        - ./krnl/.env
+  
+  token-authority:
+    container_name: token-authority
+    build: ./token-authority/.
+    ports:
+      - "8181:8181"
