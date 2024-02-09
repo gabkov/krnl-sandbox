@@ -1,5 +1,5 @@
 # Krnl mock token authority
-## Run
+## Local run
 ```shell
 go run main.go
 ```
@@ -25,7 +25,6 @@ Generates the `signatureToken`, by signing the passed `message` if the provided 
 #### Request
 ```json
 {
-    "dappName": "<the provided dapp name during dapp registration>",
     "accessToken": "<access token from the register dapp call>",
     "message": "<requested FaaS functionalities>"
 }
