@@ -112,8 +112,6 @@ func (t *Eth) GetTransactionCount(account common.Address, blockTag string) (uint
 	log.Println("eth_getTransactionCount")
 	client := client.GetClient()
 
-	log.Println(blockTag)
-
 	var result hexutil.Uint64
 	err := client.Client().CallContext(context.Background(), &result, "eth_getTransactionCount", account, blockTag)
 	return uint64(result), err
@@ -170,10 +168,8 @@ func (t *Eth) Call(ethCallMsg map[string]interface{}, blockTag interface{}) (str
 	var _blocktag string
 	switch v := blockTag.(type) {
 		case string:
-			log.Println("string blocktag:",v)
 			_blocktag = v
 		case float64:
-			log.Println("number blocktag:",v)
 			_blocktag = toBlockNumArg(big.NewInt(int64(v)))
 	}
 
