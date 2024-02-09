@@ -2,7 +2,7 @@ version: '3'
 
 services:
   krnl-node:
-    build: .
+    build: ./krnl/.
     ports:
       - "8080:8080"
     extra_hosts:

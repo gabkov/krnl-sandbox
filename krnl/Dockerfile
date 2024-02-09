@@ -11,10 +11,7 @@ ENV PATH="/usr/local/go/bin:${PATH}"
 WORKDIR /app
 COPY ./ /app
 
-WORKDIR /app/krnl
 RUN go mod tidy && go build -o krnl_node .
-
-WORKDIR /app
 
 RUN chmod +x start.sh
 ENTRYPOINT [ "sh", "-c", "./start.sh" ]
