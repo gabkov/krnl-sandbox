@@ -1,18 +1,12 @@
-# Krnl mock node
+# KRNL sandbox
 ## Run
 ```shell
-go run main.go
-```
-**Note: You must run a local node to make this work.**
-```shell
-npx hardhat node
+docker compose up
 ```
 
-## RPC methods
+This will setup the local mock krnl node connected to a lightweight token authoriy.
 
-### KrnlTask.RegisterNewDapp
-Calls the token authority and registers the dapp. Returns the `accessToken` and authority public key to be used for the smart contracts. The dapp name needs to be provided to make this call.
-### KrnlTask.TxRequest
-Calls the token authority to request a `signatureToken`. The dapp name, `accessToken` and the `message` must to be provided to make this call.
-### KrnlTask.SendTx
-Broadcasts the signed `rawTransaction` and extracts the provided (if any) FaaS message form the data-input. 
+The node is accessable at: `http://localhost:8080`
+The token authority is accessable at: `http://localhost:8181`
+
+To register you dapp call the token authority [`/register-dapp` endpoint](/token-authority/README.md#register-dapp).
