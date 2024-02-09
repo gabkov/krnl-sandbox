@@ -1,6 +1,6 @@
-#!/bin/bash
+#!/bin/sh
 
-npx hardhat node & 
+screen -d -m npx hardhat node & 
 P1=$!
 ./krnl/krnl_node &
 P2=$!

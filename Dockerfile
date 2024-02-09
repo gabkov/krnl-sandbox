@@ -1,19 +1,22 @@
-FROM node:18
+FROM node:18.16-alpine
 
 WORKDIR /app
 COPY start.sh start.sh
 
 RUN npm install -g hardhat
 
-RUN apt-get update && apt-get install -y golang-go
+COPY --from=golang:1.20-alpine /usr/local/go/ /usr/local/go/
+ 
+ENV PATH="/usr/local/go/bin:${PATH}"
 
 COPY ./ /app
 
 WORKDIR /app/krnl
 RUN go mod tidy && go build -o krnl_node .
 
+RUN apk add screen
 
 WORKDIR /app
 
 RUN chmod +x start.sh
-ENTRYPOINT [ "bash", "-c", "./start.sh" ]
+ENTRYPOINT [ "sh", "-c", "./start.sh" ]
