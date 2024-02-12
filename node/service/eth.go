@@ -30,11 +30,24 @@ func (t *Eth) GasPrice() (*big.Int, error) {
 	return client.SuggestGasPrice(context.Background())
 }
 
-func (t *Eth) GetBalance(account common.Address, blockNumber *big.Int) (*big.Int, error) {
+func (t *Eth) GetBalance(account common.Address, blockTag interface{}) (*big.Int, error) {
 	log.Println("eth_getBalance")
 	client := client.GetClient()
 
-	return client.BalanceAt(context.Background(), account, blockNumber)
+	var _blocktag string
+	switch v := blockTag.(type) {
+		case string:
+			_blocktag = v
+		case float64:
+			_blocktag = toBlockNumArg(big.NewInt(int64(v)))
+	}
+
+	var result hexutil.Big
+	err := client.Client().CallContext(context.Background(), &result, "eth_getBalance", account, _blocktag)
+	if err != nil {
+		log.Println(err)
+	}
+	return (*big.Int)(&result), nil
 }
 
 func (t *Eth) GetBlockByNumber(blockTag interface{}, includeTx bool) (map[string]interface{}, error) {

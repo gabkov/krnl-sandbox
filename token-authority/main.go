@@ -47,6 +47,7 @@ func main() {
 	router.Run(":8181")
 }
 
+// TODO: add commment
 func registerDapp(c *gin.Context) {
 	var dapp RegitserDapp
 	c.BindJSON(&dapp)
@@ -99,6 +100,7 @@ func registerDapp(c *gin.Context) {
 	c.JSON(200, registeredDapp)
 }
 
+// TODO: add commment
 func txRequest(c *gin.Context) {
 	var sendTx TxRequest
 	c.BindJSON(&sendTx)

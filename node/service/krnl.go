@@ -39,6 +39,7 @@ type SignatureToken struct {
 
 type Krnl struct{}
 
+// TODO: explain comment
 func (t *Krnl) TransactionRequest(txRequest *TxRequest) (SignatureToken, error) {
 	log.Println("krnl_transactionRequest")
 	txRequestPayload, err := json.Marshal(txRequest)
@@ -49,7 +50,7 @@ func (t *Krnl) TransactionRequest(txRequest *TxRequest) (SignatureToken, error) 
 	body, err := callTokenAuthority("/tx-request", txRequestPayload)
 	if err != nil {
 		log.Println(err)
-		return SignatureToken{}, errors.New(err.Error()) // reject or error``
+		return SignatureToken{}, errors.New(err.Error()) // reject or error
 	}
 
 	var signatureToken SignatureToken
@@ -61,6 +62,7 @@ func (t *Krnl) TransactionRequest(txRequest *TxRequest) (SignatureToken, error) 
 	return signatureToken, nil
 }
 
+// TODO: explain 
 func (t *Krnl) SendRawTransaction(rawTx string) (string, error) {
 	log.Println("krnl_sendRawTransaction")
 
@@ -86,6 +88,7 @@ func (t *Krnl) SendRawTransaction(rawTx string) (string, error) {
 			if err != nil {
 				log.Fatal(err)
 			}
+			// TODO: mock faas call comment explanation
 			err = faas.CallService(string(bytes.Trim(faasRequest, "\x00")), tx)
 			if err != nil {
 				log.Println(err)
@@ -105,6 +108,8 @@ func (t *Krnl) SendRawTransaction(rawTx string) (string, error) {
 	return tx.Hash().Hex(), nil
 }
 
+
+// TODO: explanation comment
 func callTokenAuthority(path string, payload []byte) ([]byte, error) {
 	tokenAuthority := os.Getenv("TOKEN_AUTHORITY")
 	if tokenAuthority == "" {
