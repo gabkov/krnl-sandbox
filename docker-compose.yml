@@ -3,13 +3,13 @@ name: krnl
 services:
   krnl-node:
     container_name: krnl-node
-    build: ./krnl/.
+    build: ./node/.
     ports:
       - "8080:8080"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     env_file:
-        - ./krnl/.env
+        - ./node/.env
   
   token-authority:
     container_name: token-authority
