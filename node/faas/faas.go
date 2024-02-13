@@ -8,6 +8,7 @@ import (
 )
 
 // simulate KYT database
+// the first address from the local hardhat node config
 var kytAddresses = []string{"0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"}
 
 func CallService(faas string, tx *types.Transaction) error {

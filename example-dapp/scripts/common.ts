@@ -1,7 +1,7 @@
 import { ethers, Wallet,Contract } from "krnl";
 import {abi, bytecode} from "../artifacts/contracts/KrnlDapp.sol/KrnlDapp.json";
 
-export const KRNL_NODE = "http://localhost:8080"; // TODO: env
+export const KRNL_NODE = process.env.KRNL_NODE!;
 
 export async function deployKrnlDapp(authority: string, signer: Wallet): Promise<Contract> {
     console.log("\nDeploying KrnlDapp...");

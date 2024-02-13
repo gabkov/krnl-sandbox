@@ -18,15 +18,6 @@ import (
 	"github.com/gabkov/krnl-node/faas"
 )
 
-type RegisterDapp struct {
-	DappName string `json:"dappName" binding:"required"`
-}
-
-type RegisteredDapp struct {
-	AccessToken             string `json:"accessToken" binding:"required"`
-	TokenAuthorityPublicKey string `json:"tokenAuthorityPublicKey" binding:"required"`
-}
-
 type TxRequest struct {
 	AccessToken string `json:"accessToken" binding:"required"`
 	Message     string `json:"message" binding:"required"`
@@ -39,7 +30,11 @@ type SignatureToken struct {
 
 type Krnl struct{}
 
-// TODO: explain comment
+/*
+Forwarding the call from the client to the token-authority, 
+then returning the response to the client. If there was an error, 
+it rejects the tx-request.
+*/
 func (t *Krnl) TransactionRequest(txRequest *TxRequest) (SignatureToken, error) {
 	log.Println("krnl_transactionRequest")
 	txRequestPayload, err := json.Marshal(txRequest)
@@ -50,7 +45,7 @@ func (t *Krnl) TransactionRequest(txRequest *TxRequest) (SignatureToken, error) 
 	body, err := callTokenAuthority("/tx-request", txRequestPayload)
 	if err != nil {
 		log.Println(err)
-		return SignatureToken{}, errors.New(err.Error()) // reject or error
+		return SignatureToken{}, errors.New(err.Error()) // reject
 	}
 
 	var signatureToken SignatureToken
@@ -62,7 +57,10 @@ func (t *Krnl) TransactionRequest(txRequest *TxRequest) (SignatureToken, error) 
 	return signatureToken, nil
 }
 
-// TODO: explain 
+/*
+Pauses the transaction and check's if there was any additional 
+data (FaaS requests) concatenated to the end of the input data field.
+*/
 func (t *Krnl) SendRawTransaction(rawTx string) (string, error) {
 	log.Println("krnl_sendRawTransaction")
 
@@ -76,7 +74,7 @@ func (t *Krnl) SendRawTransaction(rawTx string) (string, error) {
 		log.Fatal("err:", err)
 	}
 
-	// Simulate stopping tx here
+	// simulate stopping tx here
 	// grabbing the requested FaaS services from the end of the input-data
 	separator := "000000000000000000000000000000000000000000000000000000000000003a" // :
 	res := strings.Split(hexutil.Encode(tx.Data()), separator)
@@ -88,7 +86,7 @@ func (t *Krnl) SendRawTransaction(rawTx string) (string, error) {
 			if err != nil {
 				log.Fatal(err)
 			}
-			// TODO: mock faas call comment explanation
+			// mock FaaS service call
 			err = faas.CallService(string(bytes.Trim(faasRequest, "\x00")), tx)
 			if err != nil {
 				log.Println(err)
@@ -109,7 +107,10 @@ func (t *Krnl) SendRawTransaction(rawTx string) (string, error) {
 }
 
 
-// TODO: explanation comment
+/*
+Helper method to call the token-auhtority api. If the response was 401
+it rejects the tx with invalid access token error.
+*/
 func callTokenAuthority(path string, payload []byte) ([]byte, error) {
 	tokenAuthority := os.Getenv("TOKEN_AUTHORITY")
 	if tokenAuthority == "" {
@@ -131,11 +132,11 @@ func callTokenAuthority(path string, payload []byte) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 
+	// Reject tx request
 	if resp.StatusCode == 401 {
 		return nil, errors.New("Transaction rejected: invalid access token")
 	}
 
-	// Read the response body
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Println("Error reading response body:", err)
