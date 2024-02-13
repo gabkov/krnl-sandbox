@@ -10,6 +10,9 @@ Forwards the call from the client to the token-authority then returns the respon
 #### krnl_sendRawTransaction
 Similar to `eth_sendRawTransaction`, but instead of immediately broadcasting the transaction, it pauses to check the end of the transaction's `input data` field for additional data. This additional data is concatenated with a 32-byte padded `:` sign and encoded within the transactions, facilitating the execution of respective FaaS services.  
 
+### Mock FaaS services
+Rigth now only a [mock KYT](/node/faas/faas.go) FaaS service is implemented directly in the node, but you can get creative and implement your own services.
+
 ### Local run
 For the local run the `.env` file is not required.
 
