@@ -16,7 +16,7 @@ For the local run the `.env` file is not required.
 ```shell
 go run main.go
 ```
-**Note: You must run a local node to make this work.**
+**Note: You must run a local node**
 ```shell
 npx hardhat node
 ```

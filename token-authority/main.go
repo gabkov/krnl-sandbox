@@ -3,11 +3,10 @@ package main
 import (
 	"crypto/ecdsa"
 	"encoding/json"
-	"fmt"
+	"log"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gin-gonic/gin"
-	"log"
 	"net/http"
 	"os"
 )
@@ -36,6 +35,7 @@ type SignatureToken struct {
 	Hash           string `json:"hash" binding:"required"`
 }
 
+// mock secret
 const SIGNABLE = "secret_msg"
 
 func main() {
@@ -47,43 +47,52 @@ func main() {
 	router.Run(":8181")
 }
 
-// TODO: add commment
+/*
+Generates two key-pair. One for accessing the krnl node and 
+the other one as a token-authority to sing transaction requests.
+Returns the accessToken and the TA public key.
+*/
 func registerDapp(c *gin.Context) {
 	var dapp RegitserDapp
 	c.BindJSON(&dapp)
+
+	// only logging the Dapp name for now
+	log.Println("Registering Dapp: ", dapp.DappName)
 
 	dappPrivateKey, err := crypto.GenerateKey()
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println("Dapp PK created")
+	log.Println("Dapp PK created")
 
 	dappTokenAuthorityPrivateKey, err := crypto.GenerateKey()
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println("Dapp TA PK created")
+	log.Println("Dapp TA PK created")
 
-	// TODO add dapp name
 	dappSecrets := DappSecrets{
 		DappPK:           hexutil.Encode(crypto.FromECDSA(dappPrivateKey))[2:],
 		TokenAuthorityPK: hexutil.Encode(crypto.FromECDSA(dappTokenAuthorityPrivateKey))[2:]}
 
 	file, _ := json.Marshal(dappSecrets)
 
+	// saving the secrets into a json
+	// note: with each registration new secrets being generated
 	_ = os.WriteFile("secrets.json", file, 0644)
 
-	fmt.Println("Dapp secrets saved")
+	log.Println("Dapp secrets saved")
 
 	data := []byte(SIGNABLE)
 	hash := crypto.Keccak256Hash(data)
 
+	// creating the accessToken
 	signature, err := crypto.Sign(hash.Bytes(), dappPrivateKey)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	fmt.Println("Access token signature created")
+	log.Println("Access token signature created")
 
 	taPublicKey := dappTokenAuthorityPrivateKey.Public()
 	publicKeyECDSA, ok := taPublicKey.(*ecdsa.PublicKey)
@@ -91,6 +100,8 @@ func registerDapp(c *gin.Context) {
 		log.Fatal("cannot assert type: publicKey is not of type *ecdsa.PublicKey")
 	}
 
+	// grabbing the TA public key which is used for signature validation 
+	// in the integarting smart contracts
 	address := crypto.PubkeyToAddress(*publicKeyECDSA).Hex()
 
 	registeredDapp := RegisteredDapp{
@@ -100,7 +111,10 @@ func registerDapp(c *gin.Context) {
 	c.JSON(200, registeredDapp)
 }
 
-// TODO: add commment
+/*
+Validates the passed accessToken, then signs the passed message.
+Returns the signature and the hash of the message.
+*/
 func txRequest(c *gin.Context) {
 	var sendTx TxRequest
 	c.BindJSON(&sendTx)
@@ -124,7 +138,7 @@ func txRequest(c *gin.Context) {
 
 	publicKeyBytes := crypto.FromECDSAPub(publicKeyECDSA)
 
-	// validate access signature
+	// validate accessToken
 	sig, _ := hexutil.Decode(sendTx.AccessToken)
 	signatureNoRecoverID := sig[:len(sig)-1] // remove recovery ID
 	hash := crypto.Keccak256Hash([]byte(SIGNABLE))
@@ -147,6 +161,7 @@ func txRequest(c *gin.Context) {
 
 	hash = crypto.Keccak256Hash([]byte(sendTx.Message))
 
+	// sign FaaS request message
 	signatureToken, err := crypto.Sign(hash.Bytes(), dappTaPk)
 	if err != nil {
 		log.Fatal(err)
