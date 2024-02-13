@@ -23,21 +23,16 @@ contract KrnlDapp is IERC1271 {
         _;
     }
 
+    function recoverSigner(bytes32 _hash, bytes memory _signature) internal pure returns (address signer) {
+        signer = ECDSA.recover(_hash, _signature);
+    }
+
     function isValidSignature(bytes32 _hash, bytes calldata _signature) external view override returns (bytes4) {
         if (recoverSigner(_hash, _signature) == authority) {
             return 0x1626ba7e; // bytes4(keccak256("isValidSignature(bytes32,bytes)")
         } else {
             return 0xffffffff;
         }
-    }
-
-    function recoverSigner(bytes32 _hash, bytes memory _signature) internal pure returns (address signer) {
-        signer = ECDSA.recover(_hash, _signature);
-    }
-
-    function setAuthority(address _newAuthority) external {
-        require(msg.sender == owner, "not owner");
-        authority = _newAuthority;
     }
 
     function protectedFunctionality(string memory name, bytes32 _hash, bytes calldata _signature)
@@ -48,5 +43,10 @@ contract KrnlDapp is IERC1271 {
         emit SayHi(name);
         counter++;
         return counter;
+    }
+
+    function setAuthority(address _newAuthority) external {
+        require(msg.sender == owner, "not owner");
+        authority = _newAuthority;
     }
 }

@@ -27,6 +27,7 @@ async function main() {
     { messages: faasRequests });
 
   console.log(sentTx.hash);
+  // counter should be incremented
   console.log(await dapp.counter());
 }
 
