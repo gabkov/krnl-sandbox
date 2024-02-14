@@ -27,7 +27,7 @@ type RegisteredDapp struct {
 
 type TxRequest struct {
 	AccessToken string `json:"accessToken" binding:"required"`
-	Message     string `json:"message" binding:"required"`
+	Message     string `json:"message"`
 }
 
 type SignatureToken struct {
@@ -118,6 +118,12 @@ Returns the signature and the hash of the message.
 func txRequest(c *gin.Context) {
 	var sendTx TxRequest
 	c.BindJSON(&sendTx)
+
+	if sendTx.Message == ""{
+		log.Println("No FaaS request message provided")
+		c.Status(http.StatusBadRequest)
+		return
+	}
 
 	secrets, _ := os.ReadFile("secrets.json")
 
