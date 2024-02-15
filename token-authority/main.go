@@ -129,17 +129,27 @@ func txRequest(c *gin.Context) {
 
 	dappSecrets := DappSecrets{}
 
-	_ = json.Unmarshal([]byte(secrets), &dappSecrets)
+	err := json.Unmarshal([]byte(secrets), &dappSecrets)
+
+	if err != nil {
+		log.Println("Secrets missing, register your dapp: ", err)
+		c.Status(http.StatusInternalServerError)
+		return
+	}
 
 	dappPk, err := crypto.HexToECDSA(dappSecrets.DappPK)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		c.Status(http.StatusInternalServerError)
+		return
 	}
 
 	publicKey := dappPk.Public()
 	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
 	if !ok {
-		log.Fatal("cannot assert type: publicKey is not of type *ecdsa.PublicKey")
+		log.Println("cannot assert type: publicKey is not of type *ecdsa.PublicKey")
+		c.Status(http.StatusInternalServerError)
+		return
 	}
 
 	publicKeyBytes := crypto.FromECDSAPub(publicKeyECDSA)
@@ -162,7 +172,9 @@ func txRequest(c *gin.Context) {
 	// create singature token
 	dappTaPk, err := crypto.HexToECDSA(dappSecrets.TokenAuthorityPK)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		c.Status(http.StatusInternalServerError)
+		return
 	}
 
 	hash = crypto.Keccak256Hash([]byte(sendTx.Message))
@@ -170,7 +182,9 @@ func txRequest(c *gin.Context) {
 	// sign FaaS request message
 	signatureToken, err := crypto.Sign(hash.Bytes(), dappTaPk)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		c.Status(http.StatusInternalServerError)
+		return
 	}
 
 	sigToken := SignatureToken{SignatureToken: hexutil.Encode(signatureToken), Hash: hash.String()}
