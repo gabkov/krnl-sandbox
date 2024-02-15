@@ -15,6 +15,7 @@ KRNL_NODE=http://localhost:8080
 
 ### Run the scripts
 ```shell
+npm install
 npx hardhat compile
 npx hardhat run script/<script-name>
 ```
