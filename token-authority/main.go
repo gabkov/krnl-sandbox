@@ -49,7 +49,7 @@ func main() {
 
 /*
 Generates two key-pair. One for accessing the krnl node and 
-the other one as a token-authority to sing transaction requests.
+the other one as a token-authority to sign transaction requests.
 Returns the accessToken and the TA public key.
 */
 func registerDapp(c *gin.Context) {
@@ -101,7 +101,7 @@ func registerDapp(c *gin.Context) {
 	}
 
 	// grabbing the TA public key which is used for signature validation 
-	// in the integarting smart contracts
+	// in the integrating smart contracts
 	address := crypto.PubkeyToAddress(*publicKeyECDSA).Hex()
 
 	registeredDapp := RegisteredDapp{
