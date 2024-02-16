@@ -54,32 +54,40 @@ func (t *Eth) GetBalance(account common.Address, blockTag interface{}) (*hexutil
 
 func (t *Eth) GetBlockByNumber(blockTag interface{}, includeTx bool) (map[string]interface{}, error) {
 	log.Println("eth_getBlockByNumber")
+	
+	client := client.GetClient()
+
 	var _blocktag string
+	var _block *types.Block
 	switch v := blockTag.(type) {
 		case string:
 			log.Println("string blocktag:",v)
 			_blocktag = v
+			block, err := client.BlockByNumber(context.Background(), nil) // nil means latest
+			if err != nil {
+				log.Println("can't get block by number:", err)		
+				return make(map[string]interface{}), err
+			}
+			_block = block
 		case float64:
 			log.Println("number blocktag:",v)
 			_blocktag = toBlockNumArg(big.NewInt(int64(v)))
+			block, err := client.BlockByNumber(context.Background(), big.NewInt(int64(v)))
+			if err != nil {
+				log.Println("can't get block by number:", err)		
+				return make(map[string]interface{}), err
+			}
+			_block = block
 	}
-	
-	client := client.GetClient()
 
 	var head *types.Header
 	err := client.Client().CallContext(context.Background(), &head, "eth_getBlockByNumber", _blocktag, includeTx)
 	if err != nil {
-		log.Println("can't get latest block:", err)
+		log.Println("can't get block by number:", err)
 		return make(map[string]interface{}), err
 	}
 
-	// TODO change nil to use blockTag
-	block, err := client.BlockByNumber(context.Background(), nil) // nil means latest
-	if err != nil {
-		log.Println(err)
-	}
-
-	return RPCMarshalBlock(block.WithSeal(head), true, true, &params.ChainConfig{}), nil
+	return RPCMarshalBlock(_block.WithSeal(head), true, true, &params.ChainConfig{}), nil
 }
 
 func (t *Eth) GetBlockByHash(hash common.Hash, includeTx bool) (map[string]interface{}, error) {
