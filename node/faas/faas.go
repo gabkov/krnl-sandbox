@@ -18,8 +18,7 @@ func CallService(faas string, tx *types.Transaction) error {
 	case "KYT":
 		return kyt(tx)
 	default:
-		log.Println("Unknown function name: ", faas)
-		return nil
+		return errors.New("Unknown function name: " + faas)
 	}
 }
 

@@ -1,11 +1,13 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"errors"
 	"log"
 	"math/big"
+	"strings"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
@@ -13,9 +15,59 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/gabkov/krnl-node/client"
+	"github.com/gabkov/krnl-node/faas"
 )
 
 type Eth struct{}
+
+/*
+Pauses the transaction and check's if there was any additional 
+data (FaaS requests) concatenated to the end of the input data field.
+*/
+func (t *Eth) SendRawTransaction(rawTx string) (string, error) {
+	log.Println("eth_sendRawTransaction")
+
+	client := client.GetClient()
+
+	rawTxBytes, _ := hex.DecodeString(rawTx[2:])
+
+	tx := new(types.Transaction)
+	err := tx.UnmarshalBinary(rawTxBytes)
+	if err != nil {
+		log.Fatal("err:", err)
+	}
+
+	// simulate stopping tx here
+	// grabbing the requested FaaS services from the end of the input-data
+	separator := "000000000000000000000000000000000000000000000000000000000000003a" // :
+	res := strings.Split(hexutil.Encode(tx.Data()), separator)
+
+	// if len is more than 1 some message is concatenated to the end of the input-data
+	if len(res) > 1 {
+		for i := 1; i < len(res); i++ {
+			faasRequest, err := hex.DecodeString(res[i])
+			if err != nil {
+				log.Fatal(err)
+			}
+			// mock FaaS service call
+			err = faas.CallService(string(bytes.Trim(faasRequest, "\x00")), tx)
+			if err != nil {
+				log.Println(err)
+				return "", err
+			}
+		}
+	}
+
+	err = client.SendTransaction(context.Background(), tx)
+	if err != nil {
+		log.Println(err)
+		return "", err
+	}
+
+	log.Printf("tx sent: %s", tx.Hash().Hex())
+
+	return tx.Hash().Hex(), nil
+}
 
 func (t *Eth) ChainId() (string)  {
 	// log.Println("eth_chainId") // commenting it out too many logs
@@ -206,29 +258,6 @@ func (t *Eth) Call(ethCallMsg map[string]interface{}, blockTag interface{}) (str
 	}
 
 	return hex.String(), nil
-}
-
-func (t *Eth) SendRawTransaction(tx string) (string, error) {
-	log.Println("eth_sendRawTransaction")
-	client := client.GetClient()
-
-	rawTxBytes, err := hex.DecodeString(tx[2:])
-
-	txparsed := new(types.Transaction)
-
-
-	err = txparsed.UnmarshalBinary(rawTxBytes)
-    if err != nil {
-        log.Println("err:", err)
-    }
-
-	err = client.SendTransaction(context.Background(), txparsed)
-	if err != nil {
-		log.Println(err)
-		return "" ,err
-	}
-
-	return txparsed.Hash().Hex(), nil
 }
 
 func (t *Eth) BlockNumber() (uint64, error) {
