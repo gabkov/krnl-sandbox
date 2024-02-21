@@ -6,6 +6,7 @@ services:
     build: ./node/.
     ports:
       - "8080:8080"
+      - 8545:8545
     extra_hosts:
       - "host.docker.internal:host-gateway"
     env_file:
@@ -16,3 +17,14 @@ services:
     build: ./token-authority/.
     ports:
       - "8181:8181"
+
+  bundler:
+    container_name: bundler
+    build: ./bundler/.
+    restart: unless-stopped
+    ports:
+      - 4337:4337
+    env_file:
+      - ./bundler/.env
+    depends_on:
+      - krnl-node

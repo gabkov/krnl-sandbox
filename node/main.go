@@ -7,6 +7,7 @@ import (
 	hs "github.com/gabkov/krnl-node/httpserver"
 	"github.com/gabkov/krnl-node/rpc"
 	"github.com/gabkov/krnl-node/service"
+	_ "github.com/joho/godotenv/autoload"
 )
 
 /*

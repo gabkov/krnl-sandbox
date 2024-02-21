@@ -1,0 +1,14 @@
+version: 2
+updates:
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    open-pull-requests-limit: 20
+
+  - package-ecosystem: "npm"
+    directory: "/e2e"
+    schedule:
+      interval: "daily"
+    versioning-strategy: increase
+    open-pull-requests-limit: 20
