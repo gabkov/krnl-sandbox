@@ -4,12 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"strings"
-
-	"github.com/ethereum/go-ethereum/core/types"
 )
+
+type AccountAbstraction struct{}
 
 type SendUserOperationRequest struct {
 	Jsonrpc string `json:"jsonrpc"`
@@ -34,20 +35,25 @@ type SendUserOperationData struct {
 
 var EntryPoint = os.Getenv("ACCOUNT_ABSTRACTION_ENTRY_POINT")
 
-func SendUserOperation(tx *types.Transaction) {
+func (t *AccountAbstraction) SendUserOperation(tx *SendUserOperationRequest) {
 	url := os.Getenv("ACCOUNT_ABSTRACTION_BUNDLER_ENDPOINT")
-	payload := SendUserOperationRequest{
-		Jsonrpc: "2.0",
-		ID:      1,
-		Method:  "eth_sendUserOperation",
-	}
 
-	opData := SendUserOperationData{}
+	// payload := SendUserOperationRequest{
+	// 	Jsonrpc: "2.0",
+	// 	ID:      1,
+	// 	Method:  "eth_sendUserOperation",
+	// }
 
-	payload.Params = append(payload.Params, opData)
-	payload.Params = append(payload.Params, EntryPoint)
+	// opData := SendUserOperationData{}
 
-	jsonPayload, _ := json.Marshal(payload)
+	// payload.Params = append(payload.Params, opData)
+	// payload.Params = append(payload.Params, EntryPoint)
+
+	// jsonPayload, _ := json.Marshal(payload)
+
+	jsonPayload, _ := json.Marshal(tx)
+	log.Println("SendUserOperation")
+	log.Println(string(jsonPayload))
 
 	req, _ := http.NewRequest("POST", url, strings.NewReader(string(jsonPayload)))
 

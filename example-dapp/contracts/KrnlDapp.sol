@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.23;
 
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {IERC1271} from "@openzeppelin/contracts/interfaces/IERC1271.sol";
@@ -48,5 +48,9 @@ contract KrnlDapp is IERC1271 {
     function setAuthority(address _newAuthority) external {
         require(msg.sender == owner, "not owner");
         authority = _newAuthority;
+    }
+
+    function unprotectedFunction() external pure returns(string memory) {
+        return "Hi from Krnl";
     }
 }

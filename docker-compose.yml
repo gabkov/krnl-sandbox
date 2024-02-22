@@ -6,11 +6,16 @@ services:
     build: ./node/.
     ports:
       - "8080:8080"
-      - 8545:8545
     extra_hosts:
       - "host.docker.internal:host-gateway"
     env_file:
         - ./node/.env
+
+  hardhat-node:
+    container_name: hardhat-node
+    build: ./example-dapp/.
+    ports:
+      - 8545:8545
   
   token-authority:
     container_name: token-authority
@@ -27,4 +32,4 @@ services:
     env_file:
       - ./bundler/.env
     depends_on:
-      - krnl-node
+      - hardhat-node

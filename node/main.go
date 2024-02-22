@@ -33,6 +33,11 @@ func main() {
 		panic(err)
 	}
 
+	// register aa namespace and rpc calls
+	if err := srv.RegisterName("aa", new(service.AccountAbstraction)); err != nil {
+		panic(err)
+	}
+
 	log.Println("starting krnl node")
 	// starting the http server so we can accept incomming rpc requests
 	// similarly to the rpc setup, the http server setup is lifted over from geth
