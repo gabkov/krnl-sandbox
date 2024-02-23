@@ -2,9 +2,11 @@ package faas
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log"
 	"math/big"
+	"os"
 	"strings"
 
 	ethereum "github.com/ethereum/go-ethereum"
@@ -51,28 +53,40 @@ func kyc(tx *types.Transaction) error {
 	return nil
 }
 
+type PEA struct {
+	PolicyEngineAddress string `json:"policyEngineAddress" binding:"required"`
+}
+
 // used for lending protocol metamask demo
 func policyEngine(tx *types.Transaction) error {
-	policyEngineAddress := common.HexToAddress("0xaa292e8611adf267e563f334ee42320ac96d0463")
-
+	pea := PEA{}
+	fileBytes, _ := os.ReadFile("./_hardhat/scripts/deployments/addresses.json")
+	err := json.Unmarshal(fileBytes, &pea)
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+	
+	policyEngineAddress := common.HexToAddress(pea.PolicyEngineAddress)
 	toAddress := tx.To().String()[2:]
 
 	callMsg := ethereum.CallMsg{
-        To:   &policyEngineAddress,
+		To: &policyEngineAddress,
 		// isAllowed(address)
-        Data: common.FromHex("0xbabcc539000000000000000000000000" + toAddress),
-    }
+		Data: common.FromHex("0xbabcc539000000000000000000000000" + toAddress),
+	}
 
-    res, err := client.GetClient().CallContract(context.Background(), callMsg, nil)
-    if err != nil {
-        log.Println("Error calling contract: ", err)
-    }
+	res, err := client.GetClient().CallContract(context.Background(), callMsg, nil)
+	if err != nil {
+		log.Println("Error calling contract: ", err)
+		return err
+	}
 
 	allowed := new(big.Int)
 	allowed.SetString(common.Bytes2Hex(res), 16)
-	
+
 	if allowed.Uint64() == 0 {
-		return errors.New("unrecognised receiver")
+		return errors.New("policy engine - unrecognised receiver")
 	}
 	log.Println("Tx allowed by Policy Engine")
 	return nil

@@ -9,9 +9,13 @@ ENV PATH="/usr/local/go/bin:${PATH}"
 WORKDIR /app
 COPY ./ /app
 
-RUN npm install
-
 RUN go mod tidy && go build -o krnl_node .
 
 RUN chmod +x start.sh
+
+WORKDIR /app/_hardhat
+RUN npm install
+
+WORKDIR /app
+
 ENTRYPOINT [ "sh", "-c", "./start.sh" ]
