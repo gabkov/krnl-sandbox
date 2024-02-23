@@ -77,11 +77,11 @@ func callTokenAuthority(path string, payload []byte) ([]byte, error) {
 
 	// Reject tx request
 	if resp.StatusCode == 401 {
-		return nil, errors.New("Transaction rejected: invalid access token")
+		return nil, errors.New("transaction rejected: invalid access token")
 	}
 
 	if resp.StatusCode == 400 {
-		return nil, errors.New("Transaction rejected: no FaaS request specified")
+		return nil, errors.New("transaction rejected: no FaaS request specified")
 	}
 
 	body, err := io.ReadAll(resp.Body)

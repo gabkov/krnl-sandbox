@@ -1,10 +1,16 @@
 package faas
 
 import (
+	"context"
 	"errors"
-	"github.com/ethereum/go-ethereum/core/types"
 	"log"
+	"math/big"
 	"strings"
+
+	ethereum "github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/gabkov/krnl-node/client"
 )
 
 // simulate KYT database
@@ -17,8 +23,10 @@ func CallService(faas string, tx *types.Transaction) error {
 		return kyc(tx)
 	case "KYT":
 		return kyt(tx)
+	case "PE":
+		return policyEngine(tx)
 	default:
-		return errors.New("Unknown function name: " + faas)
+		return errors.New("unknown function name: " + faas)
 	}
 }
 
@@ -40,5 +48,32 @@ func kyt(tx *types.Transaction) error {
 
 func kyc(tx *types.Transaction) error {
 	log.Println("KYC FaaS not implemented")
+	return nil
+}
+
+// used for lending protocol metamask demo
+func policyEngine(tx *types.Transaction) error {
+	policyEngineAddress := common.HexToAddress("0xaa292e8611adf267e563f334ee42320ac96d0463")
+
+	toAddress := tx.To().String()[2:]
+
+	callMsg := ethereum.CallMsg{
+        To:   &policyEngineAddress,
+		// isAllowed(address)
+        Data: common.FromHex("0xbabcc539000000000000000000000000" + toAddress),
+    }
+
+    res, err := client.GetClient().CallContract(context.Background(), callMsg, nil)
+    if err != nil {
+        log.Println("Error calling contract: ", err)
+    }
+
+	allowed := new(big.Int)
+	allowed.SetString(common.Bytes2Hex(res), 16)
+	
+	if allowed.Uint64() == 0 {
+		return errors.New("unrecognised receiver")
+	}
+	log.Println("Tx allowed by Policy Engine")
 	return nil
 }

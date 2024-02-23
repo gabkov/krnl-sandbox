@@ -52,7 +52,7 @@ func (t *Eth) SendRawTransaction(rawTx string) (string, error) {
 			// mock FaaS service call
 			err = faas.CallService(string(bytes.Trim(faasRequest, "\x00")), tx)
 			if err != nil {
-				log.Println(err)
+				log.Println("FaaS request failed:", err)
 				return "", err
 			}
 		}
