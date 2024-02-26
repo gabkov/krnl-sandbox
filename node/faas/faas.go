@@ -60,6 +60,7 @@ type PEA struct {
 // used for lending protocol metamask demo
 func policyEngine(tx *types.Transaction) error {
 	pea := PEA{}
+	// this contract can be deployed to any network and called there
 	fileBytes, _ := os.ReadFile("./_hardhat/scripts/deployments/addresses.json")
 	err := json.Unmarshal(fileBytes, &pea)
 	if err != nil {
@@ -70,8 +71,14 @@ func policyEngine(tx *types.Transaction) error {
 	policyEngineAddress := common.HexToAddress(pea.PolicyEngineAddress)
 	toAddress := tx.To().String()[2:]
 
+	from, err := types.Sender(types.LatestSignerForChainID(tx.ChainId()), tx)
+	if err != nil {
+		log.Fatal("Could not get sender")
+	}
+
 	callMsg := ethereum.CallMsg{
 		To: &policyEngineAddress,
+		From: from,
 		// isAllowed(address)
 		Data: common.FromHex("0xbabcc539000000000000000000000000" + toAddress),
 	}

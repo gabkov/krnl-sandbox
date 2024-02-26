@@ -5,23 +5,17 @@ pragma solidity ^0.8.19;
 
 contract PolicyEngine  {
     
-    mapping(address => bool) allowedReceivers;
-    address public owner;
-
-    constructor(){
-        owner = msg.sender;
-    }
-
+    mapping (address => mapping (address => bool)) allowedReceivers;
 
     function isAllowed(address receiver) external view returns (bool){
-        return allowedReceivers[receiver];
+        return allowedReceivers[msg.sender][receiver];
     }
 
     function addToAllowList(address newReceiver) external {
-        allowedReceivers[newReceiver] = true;
+        allowedReceivers[msg.sender][newReceiver] = true;
     }
 
     function removeFromAllowList(address toRemove) external {
-        allowedReceivers[toRemove] = false;
+        allowedReceivers[msg.sender][toRemove] = false;
     }
 }
