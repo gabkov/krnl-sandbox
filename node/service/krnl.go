@@ -56,9 +56,6 @@ it rejects the tx with invalid access token error.
 */
 func callTokenAuthority(path string, payload []byte) ([]byte, error) {
 	tokenAuthority := os.Getenv("TOKEN_AUTHORITY")
-	if tokenAuthority == "" {
-		tokenAuthority = "http://127.0.0.1:8181" // local run
-	}
 	req, err := http.NewRequest("POST", tokenAuthority+path, bytes.NewBuffer(payload))
 	if err != nil {
 		log.Println("Error creating request:", err)

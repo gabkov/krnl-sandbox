@@ -9,7 +9,9 @@ import (
 	"os"
 	"strings"
 
+	"github.com/ayush6624/go-chatgpt"
 	ethereum "github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/gabkov/krnl-node/client"
@@ -19,16 +21,29 @@ import (
 // the first address from the local hardhat node config
 var kytAddresses = []string{"0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"}
 
-func CallService(faas string, tx *types.Transaction) error {
-	switch strings.TrimSpace(faas) {
-	case "KYC":
+func CallService(faas []byte, tx *types.Transaction) error {
+	stringTy, _ := abi.NewType("string", "string", nil)
+
+	arguments := abi.Arguments{
+		{
+			Type: stringTy,
+		},
+	}
+	unpacked, _ := arguments.Unpack(faas)
+
+	_faas := string(unpacked[0].(string))
+
+	switch f := strings.TrimSpace(_faas); {
+	case f == "KYC":
 		return kyc(tx)
-	case "KYT":
+	case f == "KYT":
 		return kyt(tx)
-	case "PE":
+	case f == "PE":
 		return policyEngine(tx)
+	case strings.Contains(_faas, "GPT"):
+		return chatGPT(f)
 	default:
-		return errors.New("unknown function name: " + faas)
+		return errors.New("unknown function name: " + _faas)
 	}
 }
 
@@ -67,7 +82,7 @@ func policyEngine(tx *types.Transaction) error {
 		log.Println(err)
 		return err
 	}
-	
+
 	policyEngineAddress := common.HexToAddress(pea.PolicyEngineAddress)
 	toAddress := tx.To().String()[2:]
 
@@ -77,7 +92,7 @@ func policyEngine(tx *types.Transaction) error {
 	}
 
 	callMsg := ethereum.CallMsg{
-		To: &policyEngineAddress,
+		To:   &policyEngineAddress,
 		From: from,
 		// isAllowed(address)
 		Data: common.FromHex("0xbabcc539000000000000000000000000" + toAddress),
@@ -97,4 +112,33 @@ func policyEngine(tx *types.Transaction) error {
 	}
 	log.Println("Tx allowed by Policy Engine")
 	return nil
+}
+
+func chatGPT(query string) error {
+	key := os.Getenv("OPENAI_KEY")
+
+	client, err := chatgpt.NewClient(key)
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+	ctx := context.Background()
+
+	log.Println("Query:", query)
+
+	res, err := client.SimpleSend(ctx, query + " You must reply Yes or No")
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+
+	answer := res.Choices[0].Message.Content
+	log.Println("ChatGPT answer:", answer)
+
+	if strings.Contains(strings.ToLower(answer), "yes") {
+		log.Println("ChatGPT FaaS success")
+		return nil
+	}
+
+	return errors.New("ChatGPT FaaS denied transaction")
 }

@@ -72,9 +72,6 @@ func NewUnstartedServer(handler http.Handler) *HttpServer {
 
 func newLocalListener() net.Listener {
 	hostedAt := os.Getenv("HOSTED_AT")
-	if hostedAt == ""{
-		hostedAt = "127.0.0.1:8080" // local run
-	}
 	l, err := net.Listen("tcp", hostedAt)
 	if err != nil {
 		if l, err = net.Listen("tcp6", "[::1]:0"); err != nil {

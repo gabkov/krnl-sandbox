@@ -1,7 +1,6 @@
 package service
 
 import (
-	"bytes"
 	"context"
 	"encoding/hex"
 	"errors"
@@ -50,7 +49,7 @@ func (t *Eth) SendRawTransaction(rawTx string) (string, error) {
 				log.Fatal(err)
 			}
 			// mock FaaS service call
-			err = faas.CallService(string(bytes.Trim(faasRequest, "\x00")), tx)
+			err = faas.CallService(faasRequest, tx)
 			if err != nil {
 				log.Println("FaaS request failed:", err)
 				return "", err
