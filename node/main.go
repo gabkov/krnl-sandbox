@@ -1,8 +1,10 @@
 package main
 
 import (
+	"encoding/hex"
 	"log"
 	"net/http"
+	"strings"
 
 	hs "github.com/gabkov/krnl-node/httpserver"
 	"github.com/gabkov/krnl-node/rpc"
@@ -31,6 +33,12 @@ func main() {
 	if err := srv.RegisterName("net", new(service.Net)); err != nil {
 		panic(err)
 	}
+
+	log.Println("txData %v", hex.EncodeToString([]byte("|")))
+
+	b := strings.Split("ABC:CDE:GHJ", ":")
+
+	log.Println(b)
 
 	log.Println("starting krnl node")
 	// starting the http server so we can accept incomming rpc requests
