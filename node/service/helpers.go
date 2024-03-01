@@ -87,9 +87,12 @@ func RPCMarshalHeader(head *types.Header) map[string]interface{} {
 	if head.ExcessBlobGas != nil {
 		result["excessBlobGas"] = hexutil.Uint64(*head.ExcessBlobGas)
 	}
-	if head.ParentBeaconRoot != nil {
-		result["parentBeaconBlockRoot"] = head.ParentBeaconRoot
-	}
+	// note: downgraded go-ethereum to v1.12.2 becasuse of this:
+	// https://github.com/NomicFoundation/hardhat/issues/4648
+	// and ParentBeaconRoot is not part of the implementation
+	// if head.ParentBeaconRoot != nil {
+	// 	result["parentBeaconBlockRoot"] = head.ParentBeaconRoot
+	// }
 	return result
 }
 

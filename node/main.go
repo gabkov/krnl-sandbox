@@ -7,6 +7,7 @@ import (
 	hs "github.com/gabkov/krnl-node/httpserver"
 	"github.com/gabkov/krnl-node/rpc"
 	"github.com/gabkov/krnl-node/service"
+	"github.com/joho/godotenv"
 )
 
 /*
@@ -14,6 +15,10 @@ Author: Gabor Kovacs | gabor.kovacs995@gmail.com | gabkov
 */
 
 func main() {
+	err := godotenv.Load(".env")
+	if err != nil {
+		log.Fatalf("Error loading .env file: %s", err)
+	}
 	// most of the rpc server setup is lifted over from geth
 	srv := rpc.NewServer()
 
