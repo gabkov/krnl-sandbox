@@ -14,7 +14,7 @@ async function main() {
 
   const dapp = await deployKrnlDapp(tokenAuth, signer);
 
-  const faasRequests: string[] = ["KYT", "KYC"]
+  const faasRequests: string[] = ["KYT", "KYC", "EL_KYT"]
   // requesting the signatureToken
   const hashAndSig = await provider.sendKrnlTransactionRequest(faasRequests);
 

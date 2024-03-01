@@ -17,3 +17,15 @@ func GetClient() (*ethclient.Client) {
 
 	return client
 }
+
+/*
+Connecting to the anvil chain that has the avs and el contracts deployed
+*/
+func GetElClient() (*ethclient.Client) {
+	client, err := ethclient.Dial("http://127.0.0.1:8546") // anvil local node
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return client
+}
