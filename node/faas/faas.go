@@ -75,8 +75,8 @@ func elKYT(tx *types.Transaction) error {
 		return err
 	}
 
-	if res[len(res) -1] == byte(0) {
-		log.Println("KYT success for address: ", from.Hex())
+	if res[len(res) -1] == byte(1) {
+		log.Println("EL KYT success for address: ", from.Hex())
 		return nil
 	}
 
