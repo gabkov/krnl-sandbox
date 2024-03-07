@@ -52,6 +52,8 @@ func kyc(tx *types.Transaction) error {
 	return nil
 }
 
+// In order to use elKYT the EigenLayer AVS needs to be running
+// Instructions for that can be found here: https://github.com/martonmoro/krnl-el-kyt-avs
 func elKYT(tx *types.Transaction) error {
 	// extract sender from the tx
 	from, err := types.Sender(types.LatestSignerForChainID(tx.ChainId()), tx)

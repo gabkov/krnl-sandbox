@@ -14,6 +14,8 @@ async function main() {
 
   const dapp = await deployKrnlDapp(tokenAuth, signer);
 
+  // In order to use EL_KYT the EigenLayer AVS needs to be running
+  // Instructions for that can be found here: https://github.com/martonmoro/krnl-el-kyt-avs
   const faasRequests: string[] = ["KYT", "KYC", "EL_KYT"]
   // requesting the signatureToken
   const hashAndSig = await provider.sendKrnlTransactionRequest(faasRequests);
