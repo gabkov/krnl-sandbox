@@ -58,7 +58,7 @@ func elKYT(tx *types.Transaction) error {
 	if err != nil {
 		log.Fatal("Could not get sender")
 	}
-
+	// The address of the EigenLayer AVS Task Manager contract (kytTaskManager)
 	kytTaskManagerAddress := common.HexToAddress("0xE6E340D132b5f46d1e472DebcD681B2aBc16e57E")
 
 	callMsg := ethereum.CallMsg{
@@ -82,5 +82,5 @@ func elKYT(tx *types.Transaction) error {
 
 
 
-	return errors.New("KYT failed for address " + from.Hex())
+	return errors.New("EL KYT failed for address " + from.Hex())
 }
