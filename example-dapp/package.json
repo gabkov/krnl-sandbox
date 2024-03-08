@@ -16,6 +16,8 @@
   "dependencies": {
     "@openzeppelin/contracts": "^5.0.1",
     "dotenv": "^16.4.2",
-    "krnl": "^1.0.3"
+    "ethers": "^5.7.2",
+    "krnl": "^1.0.3",
+    "userop": "^0.3.8"
   }
 }

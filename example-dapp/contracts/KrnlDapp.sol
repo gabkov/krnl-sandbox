@@ -6,6 +6,7 @@ import {IERC1271} from "@openzeppelin/contracts/interfaces/IERC1271.sol";
 
 contract KrnlDapp is IERC1271 {
     event SayHi(string name);
+    event GetScore(address from, uint256 score);
 
     address public authority;
     address public owner;
@@ -48,5 +49,13 @@ contract KrnlDapp is IERC1271 {
     function setAuthority(address _newAuthority) external {
         require(msg.sender == owner, "not owner");
         authority = _newAuthority;
+    }
+
+    function unprotectedFunctionShouldThrow(uint256 _number) pure external {
+        require(_number > 10, "Number is less than 10");
+    }
+
+    function unprotectFunctionShouldReturn(uint256 _number) external {
+        emit GetScore(msg.sender, _number);
     }
 }
