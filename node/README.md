@@ -19,7 +19,11 @@ For the local run the `.env` file is not required.
 ```shell
 go run main.go
 ```
-**Note: You must run a local node**
+**Note: You must run a local node with hardhat or anvil**
 ```shell
 npx hardhat node
+```
+_NOTE: foundry needs to be installed for anvil_
+```shell
+anvil
 ```

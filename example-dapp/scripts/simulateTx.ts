@@ -1,4 +1,4 @@
-import { ethers } from "krnl";
+import { ethers } from "krnl"; // TODO: update krnl.js for mm supported version
 import { deployKrnlDapp, KRNL_NODE } from "./common";
 
 async function main() {
@@ -14,7 +14,8 @@ async function main() {
 
   const dapp = await deployKrnlDapp(tokenAuth, signer);
 
-  const faasRequests: string[] = ["KYT", "KYC"]
+
+  const faasRequests: string[] = ["KYT", "KYC", ]
   // requesting the signatureToken
   const hashAndSig = await provider.sendKrnlTransactionRequest(faasRequests);
 
