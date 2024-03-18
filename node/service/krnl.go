@@ -31,8 +31,8 @@ type SignatureToken struct {
 type Krnl struct{}
 
 /*
-Forwarding the call from the client to the token-authority, 
-then returning the response to the client. If there was an error, 
+Forwarding the call from the client to the token-authority,
+then returning the response to the client. If there was an error,
 it rejects the tx-request.
 */
 func (t *Krnl) TransactionRequest(txRequest *TxRequest) (SignatureToken, error) {
@@ -54,11 +54,17 @@ func (t *Krnl) TransactionRequest(txRequest *TxRequest) (SignatureToken, error) 
 		log.Println("error unmarshalling response JSON:", err)
 	}
 
+	// mock FaaS service call
+	err = faas.CallService("KYT_AA", nil)
+	if err != nil {
+		log.Println(err)
+	}
+
 	return signatureToken, nil
 }
 
 /*
-Pauses the transaction and check's if there was any additional 
+Pauses the transaction and check's if there was any additional
 data (FaaS requests) concatenated to the end of the input data field.
 */
 func (t *Krnl) SendRawTransaction(rawTx string) (string, error) {
@@ -105,7 +111,6 @@ func (t *Krnl) SendRawTransaction(rawTx string) (string, error) {
 
 	return tx.Hash().Hex(), nil
 }
-
 
 /*
 Helper method to call the token-auhtority api. If the response was 401

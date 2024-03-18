@@ -10,7 +10,7 @@ WORKDIR /app
 COPY ./ /app
 
 RUN npm install
-
+RUN go mod vendor
 RUN go mod tidy && go build -o krnl_node .
 
 RUN chmod +x start.sh
