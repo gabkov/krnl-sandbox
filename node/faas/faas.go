@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -13,16 +14,53 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/stackup-wallet/stackup-bundler/pkg/userop"
 
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	etrpc "github.com/ethereum/go-ethereum/rpc"
+	"github.com/gabkov/krnl-node/build/contracts/krnldapp"
+	"github.com/gabkov/krnl-node/client"
 )
+
+type TxSendUserOpResponse struct {
+	Result string `json:"result" binding:"required"`
+}
+
+type TxSendGetUserOpRequest struct {
+	JsonRpc string   `json:"jsonrpc"`
+	Id      uint16   `json:"id"`
+	Method  string   `json:"method"`
+	Params  []string `json:"params"`
+}
+
+type TxSendGetUserOpResponse struct {
+	Params []any `json:"params"`
+}
+
+type TxSendSponsorUserOpResult struct {
+	PaymasterAndData     string `json:"paymasterAndData"`
+	PreVerificationGas   string `json:"preVerificationGas"`
+	VerificationGasLimit string `json:"verificationGasLimit"`
+	CallGasLimit         string `json:"callGasLimit"`
+}
+
+type TxSendSponsorUserOpResponse struct {
+	Result TxSendSponsorUserOpResult `json:"result"`
+}
+
+type AABundlerParams struct {
+	Jsonrpc string        `json:"jsonrpc"`
+	ID      int           `json:"id"`
+	Method  string        `json:"method"`
+	Params  []interface{} `json:"params"`
+}
 
 // simulate KYT database
 // the first address from the local hardhat node config
@@ -67,15 +105,12 @@ func kyc(tx *types.Transaction) error {
 
 func kytAA(tx *types.Transaction) error {
 	log.Println("kytAA")
-	//from, err := types.Sender(types.LatestSignerForChainID(tx.ChainId()), tx)
-	//if err != nil {
-	//	log.Fatal("Could not get sender")
-	//}
-	//sender := from.Hex()
-
-	//fake sender wallet
-	sender := "0x8CF496044F3b5cdfdfD416a75DB9bEE798A431f7"
-	from := common.HexToAddress(sender)
+	from, err := types.Sender(types.LatestSignerForChainID(tx.ChainId()), tx)
+	if err != nil {
+		log.Fatal("Could not get sender")
+	}
+	sender := from.Hex()
+	fmt.Println("sender: ", sender)
 	// get AA request from tx data
 	// KYT_AA|hex(request_body)
 	salt := common.HexToHash("0x")
@@ -114,22 +149,89 @@ func kytAA(tx *types.Transaction) error {
 	}
 
 	//get signature
-	chainIDStr := os.Getenv("CHAIN_ID")
-	chainID, ok := new(big.Int).SetString(chainIDStr, 10)
-	if !ok {
-		log.Fatal("Invalid chain ID:", chainIDStr)
-	}
-	signatureHash := getUserOpHash(op, entryPointAddress, chainID)
+	signatureHash := getUserOpHash(op, entryPointAddress, tx.ChainId())
 	op.Signature = signatureHash.Bytes()
 
-	jsonData, err := op.MarshalJSON()
-	if err != nil {
-		log.Fatal("Failed to marshal UserOperation to JSON:", err)
+	aaBundlerParams := AABundlerParams{
+		Jsonrpc: "2.0",
+		ID:      1,
+		Method:  "eth_sendUserOperation",
+		Params: []interface{}{
+			op,
+			os.Getenv("STACKUP_ENTRYPOINT_ADDRESS"),
+		},
 	}
-	fmt.Println("UserOperation as JSON:", string(jsonData))
+	//convert to json
+	var jsonData []byte
+	jsonData, err = json.MarshalIndent(aaBundlerParams, "", "\t")
+	if err != nil {
+		fmt.Println("Error Marshal AABundler JSON:", err)
+		return nil
+	}
 
-	bunderEndpoint := ""
-	callAABundler([]byte(jsonData), bunderEndpoint)
+	fmt.Println("jsonData: ", jsonData)
+	// receive the OpHash from the bundler
+	txSendUserOpResponseBytes, err := callAABundler(jsonData, os.Getenv("ACCOUNT_ABSTRACTION_BUNDLER_ENDPOINT"))
+	if err != nil {
+		return err
+	}
+
+	txSendUserOpResponse := TxSendUserOpResponse{}
+	if err := json.Unmarshal(txSendUserOpResponseBytes, &txSendUserOpResponse); err != nil {
+		return errors.New("Request to AA Bundler failed")
+	}
+	// listen for the event from KrnlContract, here is GetCounter
+	// if yes, go through
+	sepoliaClient := client.GetWsClient()
+
+	// load Krnl contract
+	krnlAddr := common.HexToAddress("0x20Ed044884D83787368861C4F987D9ed7e8Aa8A1")
+	krnlContract, err := krnldapp.NewKrnldapp(krnlAddr, sepoliaClient)
+	if err != nil {
+		log.Fatal(err)
+	}
+	krnlContractAbi, err := abi.JSON(strings.NewReader(string(krnldapp.KrnldappABI)))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	_ = krnlContract
+
+	query := ethereum.FilterQuery{
+		Addresses: []common.Address{krnlAddr},
+	}
+
+	logs := make(chan types.Log)
+
+	sub, err := sepoliaClient.SubscribeFilterLogs(context.Background(), query, logs)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// checking log for 30s
+	for start := time.Now().Add(10 * time.Second); time.Since(start) < time.Second; {
+		select {
+		case err := <-sub.Err():
+			log.Fatal(err)
+		case vLog := <-logs:
+			event := struct {
+				From    common.Address
+				Counter *big.Int
+			}{}
+			err := krnlContractAbi.UnpackIntoInterface(&event, "GetCounter", vLog.Data)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			log.Printf("Receive %v with value %v", event.From.String(), event.Counter)
+
+			if event.Counter.Cmp(big.NewInt(10)) <= 0 {
+				return errors.New("KYT_AA failed for address " + from.Hex())
+			} else {
+				return nil
+			}
+		}
+	}
 
 	return nil
 }

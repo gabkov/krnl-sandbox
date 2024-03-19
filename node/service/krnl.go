@@ -54,12 +54,6 @@ func (t *Krnl) TransactionRequest(txRequest *TxRequest) (SignatureToken, error) 
 		log.Println("error unmarshalling response JSON:", err)
 	}
 
-	// mock FaaS service call
-	err = faas.CallService("KYT_AA", nil)
-	if err != nil {
-		log.Println(err)
-	}
-
 	return signatureToken, nil
 }
 
