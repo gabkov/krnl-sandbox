@@ -126,13 +126,16 @@ func kytAA(tx *types.Transaction) error {
 	initCode := createInitCode(factoryAddress, accountAddress, big.NewInt(1))
 
 	// call gitcoin passport
+	callData := []byte("0x")
+	//gitCoinAddress := common.HexToAddress(os.Getenv("GITCOIN_DECODE_ADDRESS"))
+	//callData := callData(gitCoinAddress, from)
 
 	//set userOp data
 	data := map[string]interface{}{
 		"sender":               accountAddress,
 		"nonce":                nonce,
 		"initCode":             initCode,
-		"callData":             []byte(""),
+		"callData":             callData,
 		"callGasLimit":         big.NewInt(200000),
 		"verificationGasLimit": big.NewInt(100000),
 		"preVerificationGas":   big.NewInt(300000),
@@ -169,7 +172,7 @@ func kytAA(tx *types.Transaction) error {
 		return nil
 	}
 
-	fmt.Println("jsonData: ", jsonData)
+	fmt.Println("jsonData: ", string(jsonData))
 	// receive the OpHash from the bundler
 	txSendUserOpResponseBytes, err := callAABundler(jsonData, os.Getenv("ACCOUNT_ABSTRACTION_BUNDLER_ENDPOINT"))
 	if err != nil {
@@ -188,11 +191,11 @@ func kytAA(tx *types.Transaction) error {
 	krnlAddr := common.HexToAddress("0x20Ed044884D83787368861C4F987D9ed7e8Aa8A1")
 	krnlContract, err := krnldapp.NewKrnldapp(krnlAddr, sepoliaClient)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	krnlContractAbi, err := abi.JSON(strings.NewReader(string(krnldapp.KrnldappABI)))
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	_ = krnlContract
@@ -205,14 +208,14 @@ func kytAA(tx *types.Transaction) error {
 
 	sub, err := sepoliaClient.SubscribeFilterLogs(context.Background(), query, logs)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	// checking log for 30s
 	for start := time.Now().Add(10 * time.Second); time.Since(start) < time.Second; {
 		select {
 		case err := <-sub.Err():
-			log.Fatal(err)
+			return err
 		case vLog := <-logs:
 			event := struct {
 				From    common.Address
@@ -220,7 +223,7 @@ func kytAA(tx *types.Transaction) error {
 			}{}
 			err := krnlContractAbi.UnpackIntoInterface(&event, "GetCounter", vLog.Data)
 			if err != nil {
-				log.Fatal(err)
+				return err
 			}
 
 			log.Printf("Receive %v with value %v", event.From.String(), event.Counter)
@@ -301,7 +304,7 @@ func getCreate2Address(fromAddress common.Address, salt common.Hash, initCode st
 	return common.BytesToAddress(hashed[12:])
 }
 
-func createInitCode(factoryAddress common.Address, accountAddress common.Address, key *big.Int) []byte {
+func createInitCode(factoryAddress, accountAddress common.Address, key *big.Int) []byte {
 	client := dialToChain()
 
 	// ABI for factory contract
@@ -316,6 +319,23 @@ func createInitCode(factoryAddress common.Address, accountAddress common.Address
 	initCode, err := contractBinding.GetInitCode(context.Background(), accountAddress, key)
 	if err != nil {
 		log.Fatal("Failed to get nonce:", err)
+	}
+
+	return initCode
+}
+
+func callData(gitCoinAddress, accountAddress common.Address) []byte {
+	client := dialToChain()
+	const contractABI = `{"inputs": [{"internalType": "address","name": "_user","type": "address"}],"name": "getScore","outputs": [{"internalType": "uint256","name": "","type": "uint256"}],"stateMutability": "view","type": "function"}`
+	contractBinding := ContractBinding{
+		Address: gitCoinAddress,
+		ABI:     contractABI,
+		Client:  client,
+	}
+	// Call GetInitCode
+	initCode, err := contractBinding.GetCallData(context.Background(), accountAddress)
+	if err != nil {
+		log.Fatal("Failed to get CallData:", err)
 	}
 
 	return initCode
@@ -374,7 +394,9 @@ func (c *ContractBinding) GetNonce(ctx context.Context, sender common.Address, k
 	// call via JSON-RPC
 	var result string
 	result, err = c.getDataFromContract(ctx, input)
-
+	if err != nil {
+		return nil, err
+	}
 	nonce := new(big.Int)
 	nonce, ok := nonce.SetString(result[2:], 16)
 	if !ok {
@@ -400,7 +422,9 @@ func (c *ContractBinding) GetInitCode(ctx context.Context, sender common.Address
 	// call via JSON-RPC
 	var result string
 	result, err = c.getDataFromContract(ctx, input)
-
+	if err != nil {
+		return nil, err
+	}
 	initCode, err := hex.DecodeString(result[2:])
 	if err != nil {
 		return nil, err
@@ -427,4 +451,32 @@ func getUserOpHash(op *userop.UserOperation, entryPoint common.Address, chainID 
 		common.LeftPadBytes(entryPoint.Bytes(), 32),
 		common.LeftPadBytes(chainID.Bytes(), 32),
 	)
+}
+
+func (c *ContractBinding) GetCallData(ctx context.Context, sender common.Address) ([]byte, error) {
+	// Compile ABI
+	contractABI, err := abi.JSON(strings.NewReader(c.ABI))
+	if err != nil {
+		return nil, err
+	}
+
+	// Encode input of createAccount
+	input, err := contractABI.Pack("getScore", sender)
+	if err != nil {
+		return nil, err
+	}
+
+	// call via JSON-RPC
+	var result string
+	result, err = c.getDataFromContract(ctx, input)
+	if err != nil {
+		return nil, err
+	}
+
+	initCode, err := hex.DecodeString(result[2:])
+	if err != nil {
+		return nil, err
+	}
+
+	return initCode, nil
 }

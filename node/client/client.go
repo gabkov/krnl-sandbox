@@ -20,3 +20,15 @@ func GetClient() *ethclient.Client {
 
 	return client
 }
+
+/*
+Use this Client to make a transaction to AA Bundler
+*/
+func GetWsClient() *ethclient.Client {
+	client, err := ethclient.Dial(os.Getenv("SEPOLIA_WS_ENDPOINT"))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return client
+}
