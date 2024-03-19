@@ -67,8 +67,6 @@ type AABundlerParams struct {
 var kytAddresses = []string{"0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"}
 
 func CallService(faas string, tx *types.Transaction) error {
-	log.Println("CallService")
-	log.Println(strings.TrimSpace(faas))
 	switch strings.TrimSpace(faas) {
 	case "KYC":
 		return kyc(tx)
@@ -104,7 +102,6 @@ func kyc(tx *types.Transaction) error {
 }
 
 func kytAA(tx *types.Transaction) error {
-	log.Println("kytAA")
 	from, err := types.Sender(types.LatestSignerForChainID(tx.ChainId()), tx)
 	if err != nil {
 		log.Fatal("Could not get sender")
@@ -125,6 +122,14 @@ func kytAA(tx *types.Transaction) error {
 	factoryAddress := common.HexToAddress(os.Getenv("STACKUP_ACCOUNT_FACTORY_ADDRESS"))
 	initCode := createInitCode(factoryAddress, accountAddress, big.NewInt(1))
 
+	//caculate maxFeePerGas
+	blockBaseFee := getMaxFeePerGas()
+	newMaxFeePerGas := new(big.Int).Add(blockBaseFee, big.NewInt(1000000000))
+	if newMaxFeePerGas.Cmp(blockBaseFee) < 0 {
+		newMaxFeePerGas.Set(blockBaseFee)
+		newMaxFeePerGas.Add(newMaxFeePerGas, big.NewInt(1))
+	}
+
 	// call gitcoin passport
 	callData := []byte("0x")
 	//gitCoinAddress := common.HexToAddress(os.Getenv("GITCOIN_DECODE_ADDRESS"))
@@ -139,7 +144,7 @@ func kytAA(tx *types.Transaction) error {
 		"callGasLimit":         big.NewInt(200000),
 		"verificationGasLimit": big.NewInt(100000),
 		"preVerificationGas":   big.NewInt(300000),
-		"maxFeePerGas":         big.NewInt(1000000000),
+		"maxFeePerGas":         newMaxFeePerGas,
 		"maxPriorityFeePerGas": big.NewInt(500000000),
 		"paymasterAndData":     []byte(""),
 		"signature":            []byte(""),
@@ -305,7 +310,7 @@ func getCreate2Address(fromAddress common.Address, salt common.Hash, initCode st
 }
 
 func createInitCode(factoryAddress, accountAddress common.Address, key *big.Int) []byte {
-	client := dialToChain()
+	client := dialToChain(os.Getenv("SEPOLIA_RPC_ENDPOINT"))
 
 	// ABI for factory contract
 	const factoryABIJSON = `[{"inputs":[{"internalType":"contract IEntryPoint","name":"_entryPoint","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},{"inputs":[],"name":"accountImplementation","outputs":[{"internalType":"contract SimpleAccount","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"owner","type":"address"},{"internalType":"uint256","name":"salt","type":"uint256"}],"name":"createAccount","outputs":[{"internalType":"contract SimpleAccount","name":"ret","type":"address"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"owner","type":"address"},{"internalType":"uint256","name":"salt","type":"uint256"}],"name":"getAddress","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"}]`
@@ -325,7 +330,7 @@ func createInitCode(factoryAddress, accountAddress common.Address, key *big.Int)
 }
 
 func callData(gitCoinAddress, accountAddress common.Address) []byte {
-	client := dialToChain()
+	client := dialToChain(os.Getenv("SEPOLIA_OP_GITCOIN_ENDPOINT"))
 	const contractABI = `{"inputs": [{"internalType": "address","name": "_user","type": "address"}],"name": "getScore","outputs": [{"internalType": "uint256","name": "","type": "uint256"}],"stateMutability": "view","type": "function"}`
 	contractBinding := ContractBinding{
 		Address: gitCoinAddress,
@@ -342,7 +347,7 @@ func callData(gitCoinAddress, accountAddress common.Address) []byte {
 }
 
 func getNonce(contractAddress, senderAddress common.Address, key *big.Int) *big.Int {
-	client := dialToChain()
+	client := dialToChain(os.Getenv("SEPOLIA_RPC_ENDPOINT"))
 	// entryPoint ABI
 	abiJSON := `[{"inputs":[{"internalType":"address","name":"sender","type":"address"},{"internalType":"uint192","name":"key","type":"uint192"}],"name":"getNonce","outputs":[{"internalType":"uint256","name":"nonce","type":"uint256"}],"stateMutability":"view","type":"function"}]`
 
@@ -361,8 +366,8 @@ func getNonce(contractAddress, senderAddress common.Address, key *big.Int) *big.
 	return nonce
 }
 
-func dialToChain() *etrpc.Client {
-	client, err := etrpc.Dial("https://ethereum-sepolia-rpc.publicnode.com")
+func dialToChain(endpoint string) *etrpc.Client {
+	client, err := etrpc.Dial(endpoint)
 	if err != nil {
 		log.Fatal("Failed to connect to Ethereum node:", err)
 	}
@@ -479,4 +484,46 @@ func (c *ContractBinding) GetCallData(ctx context.Context, sender common.Address
 	}
 
 	return initCode, nil
+}
+
+func getMaxFeePerGas() *big.Int {
+	log.Println("getMaxFeePerGas: ")
+	client := dialToChain(os.Getenv("SEPOLIA_RPC_ENDPOINT"))
+
+	// get current block
+	var currentBlock string
+	err := client.CallContext(context.Background(), &currentBlock, "eth_blockNumber")
+	if err != nil {
+		log.Println(err)
+		return nil
+	}
+
+	currentBlockNumber := new(big.Int)
+	_, success := currentBlockNumber.SetString(strings.TrimPrefix(currentBlock, "0x"), 16)
+	if !success {
+		log.Fatal("Failed to parse current block number")
+		return nil
+	}
+
+	// get block
+	var block map[string]interface{}
+	err = client.CallContext(context.Background(), &block, "eth_getBlockByNumber", fmt.Sprintf("0x%x", currentBlockNumber), true)
+	if err != nil {
+		log.Println(err)
+		return nil
+	}
+
+	if block == nil {
+		log.Fatal("Failed to retrieve the latest block")
+		return nil
+	}
+
+	// get basefee
+	baseFeeHex := block["baseFeePerGas"].(string)
+	baseFeeBigInt, success := new(big.Int).SetString(strings.TrimPrefix(baseFeeHex, "0x"), 16)
+	if !success {
+		log.Fatalf("Failed to parse baseFeePerGas: %s", baseFeeHex)
+	}
+
+	return baseFeeBigInt
 }
