@@ -111,12 +111,12 @@ func kytAA(tx *types.Transaction) error {
 	// caculate account address
 	factoryAddress := common.HexToAddress(os.Getenv("STACKUP_ACCOUNT_FACTORY_ADDRESS"))
 	accountAddress := getCreate2Address(factoryAddress, from, big.NewInt(0))
+	// gen initCode
+	initCode := createInitCode(factoryAddress, from, big.NewInt(0))
+
 	//get nonce
 	entryPointAddress := common.HexToAddress(os.Getenv("STACKUP_ENTRYPOINT_ADDRESS"))
 	nonce := getNonce(entryPointAddress, accountAddress, big.NewInt(0))
-
-	// gen initCode
-	initCode := createInitCode(factoryAddress, accountAddress, big.NewInt(0))
 
 	//caculate maxFeePerGas
 	blockBaseFee := getMaxFeePerGas()
@@ -154,7 +154,21 @@ func kytAA(tx *types.Transaction) error {
 
 	//get signature
 	signatureHash := getUserOpHash(op, entryPointAddress, tx.ChainId())
-	op.Signature = signatureHash.Bytes()
+	userOpHash := signatureHash.Bytes()
+
+	// sender PK
+	privateKeyHex := "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+	// Gen ECDSA from private key
+	privateKey, err := crypto.HexToECDSA(privateKeyHex)
+	if err != nil {
+		log.Fatal("Error converting private key:", err)
+	}
+
+	signature, err := crypto.Sign(userOpHash, privateKey)
+	if err != nil {
+		fmt.Println("Error signing message:", err)
+	}
+	op.Signature = signature
 
 	aaBundlerParams := AABundlerParams{
 		Jsonrpc: "2.0",
