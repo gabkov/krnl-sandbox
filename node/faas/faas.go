@@ -108,19 +108,19 @@ func kytAA(tx *types.Transaction) error {
 	}
 	sender := from.Hex()
 	fmt.Println("sender: ", sender)
-	// get AA request from tx data
-	// KYT_AA|hex(request_body)
-	salt := common.HexToHash("0x")
-	accountInitCode := "0x"
+
 	// caculate account address
-	accountAddress := getCreate2Address(from, salt, accountInitCode)
+	accountAddress := from
+	//salt := common.HexToHash("0x")
+	//accountInitCode := "0x"
+	//accountAddress := getCreate2Address(from, salt, accountInitCode)
 	//get nonce
 	entryPointAddress := common.HexToAddress(os.Getenv("STACKUP_ENTRYPOINT_ADDRESS"))
 	nonce := getNonce(entryPointAddress, accountAddress, big.NewInt(3))
 
 	// gen initCode
 	factoryAddress := common.HexToAddress(os.Getenv("STACKUP_ACCOUNT_FACTORY_ADDRESS"))
-	initCode := createInitCode(factoryAddress, accountAddress, big.NewInt(1))
+	initCode := createInitCode(factoryAddress, accountAddress, big.NewInt(0))
 
 	//caculate maxFeePerGas
 	blockBaseFee := getMaxFeePerGas()
@@ -310,15 +310,12 @@ func getCreate2Address(fromAddress common.Address, salt common.Hash, initCode st
 }
 
 func createInitCode(factoryAddress, accountAddress common.Address, key *big.Int) []byte {
-	client := dialToChain(os.Getenv("SEPOLIA_RPC_ENDPOINT"))
-
 	// ABI for factory contract
 	const factoryABIJSON = `[{"inputs":[{"internalType":"contract IEntryPoint","name":"_entryPoint","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},{"inputs":[],"name":"accountImplementation","outputs":[{"internalType":"contract SimpleAccount","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"owner","type":"address"},{"internalType":"uint256","name":"salt","type":"uint256"}],"name":"createAccount","outputs":[{"internalType":"contract SimpleAccount","name":"ret","type":"address"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"owner","type":"address"},{"internalType":"uint256","name":"salt","type":"uint256"}],"name":"getAddress","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"}]`
 
 	contractBinding := ContractBinding{
 		Address: factoryAddress,
 		ABI:     factoryABIJSON,
-		Client:  client,
 	}
 	// Call GetInitCode
 	initCode, err := contractBinding.GetInitCode(context.Background(), accountAddress, key)
@@ -424,18 +421,18 @@ func (c *ContractBinding) GetInitCode(ctx context.Context, sender common.Address
 		return nil, err
 	}
 
-	// call via JSON-RPC
-	var result string
-	result, err = c.getDataFromContract(ctx, input)
+	//concat factoryAdrress with callData
+	initCode := c.Address.Hex() + hex.EncodeToString(input)
+	initCode = strings.TrimPrefix(initCode, "0x")
+	initCodeBytes, err := hex.DecodeString(initCode)
 	if err != nil {
+		fmt.Println("Error decoding initCode:", err)
 		return nil, err
 	}
-	initCode, err := hex.DecodeString(result[2:])
-	if err != nil {
-		return nil, err
-	}
-
-	return initCode, nil
+	fmt.Println("input: ", input, hex.EncodeToString(input), initCodeBytes)
+	fmt.Println("Address: ", c.Address.Hex())
+	fmt.Println("initCode: ", initCode)
+	return initCodeBytes, nil
 }
 
 func (c *ContractBinding) getDataFromContract(ctx context.Context, input []byte) (string, error) {
