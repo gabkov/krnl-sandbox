@@ -187,11 +187,10 @@ func kytAA(tx *types.Transaction) error {
 	}
 
 	//get signature
-	fmt.Println("11155420")
-	fmt.Println("tx.ChainId(): ", tx.ChainId())
-	signatureHash := getUserOpHash(op, entryPointAddress, big.NewInt(11155420))
-	userOpHash := signatureHash.Bytes()
 
+	fmt.Println("11155420: ", big.NewInt(11155420))
+	signatureHash := op.GetUserOpHash(entryPointAddress, big.NewInt(11155420))
+	userOpHash := signatureHash.Bytes()
 	// sender PK
 	privateKeyHex := "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
 	// Gen ECDSA from private key
@@ -204,7 +203,11 @@ func kytAA(tx *types.Transaction) error {
 	if err != nil {
 		fmt.Println("Error signing message:", err)
 	}
-	op.Signature = signature
+	tmpSignature := "0xa59b381ebead96fb15156745b70d3c69a3b11f9c9aa1be78a074d66a854df7df2aa0757868b62657526161774cd8cdd6468b2fbd78eddbc3198eecfa12dc12581c"
+	byteData, err := hex.DecodeString(tmpSignature[2:])
+	fmt.Println("signature:", signature)
+	//op.Signature = signature
+	op.Signature = byteData
 
 	aaBundlerParams := AABundlerParams{
 		Jsonrpc: "2.0",
@@ -343,7 +346,7 @@ func getCreate2Address(factoryAddress, accountAddress common.Address, key *big.I
 	}
 
 	// Call GetInitCode
-	address, err := contractBinding.GetAccountAddress(context.Background(), accountAddress, key)
+	address, err := contractBinding.getAccountAddress(context.Background(), accountAddress, key)
 	if err != nil {
 		log.Fatal("Failed to get address:", err)
 	}
@@ -361,7 +364,7 @@ func createInitCode(factoryAddress, accountAddress common.Address, key *big.Int)
 		ABI:     factoryABIJSON,
 	}
 	// Call GetInitCode
-	initCode, err := contractBinding.GetInitCode(context.Background(), accountAddress, key)
+	initCode, err := contractBinding.getInitCode(context.Background(), accountAddress, key)
 	if err != nil {
 		log.Fatal("Failed to get nonce:", err)
 	}
@@ -413,7 +416,7 @@ func getNonce(contractAddress, senderAddress common.Address, key *big.Int) *big.
 	}
 
 	// call getNonce from smart contract
-	nonce, err := contractBinding.GetNonce(context.Background(), senderAddress, key)
+	nonce, err := contractBinding.getNonce(context.Background(), senderAddress, key)
 	if err != nil {
 		log.Fatal("Failed to get nonce:", err)
 	}
@@ -438,7 +441,7 @@ type ContractBinding struct {
 }
 
 // GetNonce call getNonce from smart contract and return nonce
-func (c *ContractBinding) GetNonce(ctx context.Context, sender common.Address, key *big.Int) (*big.Int, error) {
+func (c *ContractBinding) getNonce(ctx context.Context, sender common.Address, key *big.Int) (*big.Int, error) {
 	// Compile ABI
 	contractABI, err := abi.JSON(strings.NewReader(c.ABI))
 	if err != nil {
@@ -468,7 +471,7 @@ func (c *ContractBinding) GetNonce(ctx context.Context, sender common.Address, k
 }
 
 // GetAccountAddress call getAddress from smart contract and return address
-func (c *ContractBinding) GetAccountAddress(ctx context.Context, owner common.Address, key *big.Int) (string, error) {
+func (c *ContractBinding) getAccountAddress(ctx context.Context, owner common.Address, key *big.Int) (string, error) {
 	// Compile ABI
 	contractABI, err := abi.JSON(strings.NewReader(c.ABI))
 	if err != nil {
@@ -491,7 +494,7 @@ func (c *ContractBinding) GetAccountAddress(ctx context.Context, owner common.Ad
 	return result, nil
 }
 
-func (c *ContractBinding) GetInitCode(ctx context.Context, sender common.Address, key *big.Int) ([]byte, error) {
+func (c *ContractBinding) getInitCode(ctx context.Context, sender common.Address, key *big.Int) ([]byte, error) {
 	// Compile ABI
 	contractABI, err := abi.JSON(strings.NewReader(c.ABI))
 	if err != nil {
@@ -528,15 +531,7 @@ func (c *ContractBinding) getDataFromContract(ctx context.Context, input []byte)
 	return result, nil
 }
 
-func getUserOpHash(op *userop.UserOperation, entryPoint common.Address, chainID *big.Int) common.Hash {
-	return crypto.Keccak256Hash(
-		crypto.Keccak256(op.PackForSignature()),
-		common.LeftPadBytes(entryPoint.Bytes(), 32),
-		common.LeftPadBytes(chainID.Bytes(), 32),
-	)
-}
-
-func (c *ContractBinding) GetCallData(ctx context.Context, sender common.Address) ([]byte, error) {
+func (c *ContractBinding) getCallData(ctx context.Context, sender common.Address) ([]byte, error) {
 	// Compile ABI
 	contractABI, err := abi.JSON(strings.NewReader(c.ABI))
 	if err != nil {
