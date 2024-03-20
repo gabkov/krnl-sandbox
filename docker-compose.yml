@@ -16,3 +16,9 @@ services:
     build: ./token-authority/.
     ports:
       - "8181:8181"
+  
+  hardhat-node:
+    container_name: hardhat-node
+    build: ./example-dapp/.
+    ports:
+      - 8545:8545
