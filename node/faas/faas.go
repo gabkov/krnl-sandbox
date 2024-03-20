@@ -3,7 +3,6 @@ package faas
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -110,16 +109,13 @@ func kytAA(tx *types.Transaction) error {
 	fmt.Println("sender: ", sender)
 
 	// caculate account address
-	accountAddress := from
-	//salt := common.HexToHash("0x")
-	//accountInitCode := "0x"
-	//accountAddress := getCreate2Address(from, salt, accountInitCode)
+	factoryAddress := common.HexToAddress(os.Getenv("STACKUP_ACCOUNT_FACTORY_ADDRESS"))
+	accountAddress := getCreate2Address(factoryAddress, from, big.NewInt(0))
 	//get nonce
 	entryPointAddress := common.HexToAddress(os.Getenv("STACKUP_ENTRYPOINT_ADDRESS"))
-	nonce := getNonce(entryPointAddress, accountAddress, big.NewInt(3))
+	nonce := getNonce(entryPointAddress, accountAddress, big.NewInt(0))
 
 	// gen initCode
-	factoryAddress := common.HexToAddress(os.Getenv("STACKUP_ACCOUNT_FACTORY_ADDRESS"))
 	initCode := createInitCode(factoryAddress, accountAddress, big.NewInt(0))
 
 	//caculate maxFeePerGas
@@ -131,9 +127,9 @@ func kytAA(tx *types.Transaction) error {
 	}
 
 	// call gitcoin passport
-	callData := []byte("0x")
+	//callData := []byte("0x")
 	//gitCoinAddress := common.HexToAddress(os.Getenv("GITCOIN_DECODE_ADDRESS"))
-	//callData := callData(gitCoinAddress, from)
+	callData := callData(entryPointAddress, from)
 
 	//set userOp data
 	data := map[string]interface{}{
@@ -141,9 +137,9 @@ func kytAA(tx *types.Transaction) error {
 		"nonce":                nonce,
 		"initCode":             initCode,
 		"callData":             callData,
-		"callGasLimit":         big.NewInt(200000),
-		"verificationGasLimit": big.NewInt(100000),
-		"preVerificationGas":   big.NewInt(300000),
+		"callGasLimit":         big.NewInt(6000000),
+		"verificationGasLimit": big.NewInt(6000000),
+		"preVerificationGas":   big.NewInt(6000000),
 		"maxFeePerGas":         newMaxFeePerGas,
 		"maxPriorityFeePerGas": big.NewInt(500000000),
 		"paymasterAndData":     []byte(""),
@@ -285,28 +281,25 @@ func callAABundler(payload []byte, endpoint string) ([]byte, error) {
 	return body, nil
 }
 
-func getCreate2Address(fromAddress common.Address, salt common.Hash, initCode string) common.Address {
-	// Convert the initCode string to bytes
-	initCodeBytes, err := hex.DecodeString(initCode[2:]) // Skip the '0x' prefix
-	if err != nil {
-		log.Fatal("Failed to decode initCode:", err)
-		return common.BytesToAddress([]byte(""))
+func getCreate2Address(factoryAddress, accountAddress common.Address, key *big.Int) common.Address {
+	client := dialToChain(os.Getenv("SEPOLIA_RPC_ENDPOINT"))
+
+	entryPointABI := `[{"inputs":[{"internalType":"contract IEntryPoint","name":"_entryPoint","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},{"inputs":[],"name":"accountImplementation","outputs":[{"internalType":"contract SimpleAccount","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"owner","type":"address"},{"internalType":"uint256","name":"salt","type":"uint256"}],"name":"createAccount","outputs":[{"internalType":"contract SimpleAccount","name":"ret","type":"address"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"owner","type":"address"},{"internalType":"uint256","name":"salt","type":"uint256"}],"name":"getAddress","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"}]`
+
+	contractBinding := ContractBinding{
+		Address: factoryAddress,
+		ABI:     entryPointABI,
+		Client:  client,
 	}
 
-	// Calculate the hash of the initCode
-	initCodeHash := sha256.Sum256(initCodeBytes)
-
-	// Combine the bytes of the contract deployment bytecode, the salt, and the creating address
-	data := make([]byte, 0, len(fromAddress.Bytes())+len(salt.Bytes())+len(initCodeHash))
-	data = append(data, fromAddress.Bytes()...)
-	data = append(data, salt.Bytes()...)
-	data = append(data, initCodeHash[:]...)
-
-	// Hash the result
-	hashed := sha256.Sum256(data)
+	// Call GetInitCode
+	address, err := contractBinding.GetAccountAddress(context.Background(), accountAddress, key)
+	if err != nil {
+		log.Fatal("Failed to get address:", err)
+	}
 
 	// Return the address
-	return common.BytesToAddress(hashed[12:])
+	return common.HexToAddress(address)
 }
 
 func createInitCode(factoryAddress, accountAddress common.Address, key *big.Int) []byte {
@@ -326,21 +319,36 @@ func createInitCode(factoryAddress, accountAddress common.Address, key *big.Int)
 	return initCode
 }
 
-func callData(gitCoinAddress, accountAddress common.Address) []byte {
-	client := dialToChain(os.Getenv("SEPOLIA_OP_GITCOIN_ENDPOINT"))
-	const contractABI = `{"inputs": [{"internalType": "address","name": "_user","type": "address"}],"name": "getScore","outputs": [{"internalType": "uint256","name": "","type": "uint256"}],"stateMutability": "view","type": "function"}`
-	contractBinding := ContractBinding{
-		Address: gitCoinAddress,
-		ABI:     contractABI,
-		Client:  client,
-	}
-	// Call GetInitCode
-	initCode, err := contractBinding.GetCallData(context.Background(), accountAddress)
+func callData(entryPointAddress, accountAddress common.Address) []byte {
+	accountABI := `[{"type":"function","name":"execute","inputs":[{"type":"address","name":"to"},{"type":"uint256","name":"value"},{"type":"bytes","name":"data"}]}]`
+	contractABI := `[{"type":"function","name":"transfer","inputs":[{"type":"address","name":"to"},{"type":"uint256","name":"amount"}],"outputs":[{"type":"bool"}]}]`
+
+	// Parse ABI
+	account, err := abi.JSON(strings.NewReader(accountABI))
 	if err != nil {
-		log.Fatal("Failed to get CallData:", err)
+		fmt.Println("Error parsing account ABI:", err)
+		return nil
+	}
+	contract, err := abi.JSON(strings.NewReader(contractABI))
+	if err != nil {
+		fmt.Println("Error parsing contract ABI:", err)
+		return nil
 	}
 
-	return initCode
+	amount := big.NewInt(0)
+	inputContract, err := contract.Pack("transfer", accountAddress, amount)
+	if err != nil {
+		fmt.Println("err inputContract: ", err)
+		return nil
+	}
+
+	inputAccount, err := account.Pack("execute", entryPointAddress, amount, inputContract)
+	if err != nil {
+		fmt.Println("err inputAccount: ", err)
+		return nil
+	}
+
+	return inputAccount
 }
 
 func getNonce(contractAddress, senderAddress common.Address, key *big.Int) *big.Int {
@@ -399,6 +407,7 @@ func (c *ContractBinding) GetNonce(ctx context.Context, sender common.Address, k
 	if err != nil {
 		return nil, err
 	}
+
 	nonce := new(big.Int)
 	nonce, ok := nonce.SetString(result[2:], 16)
 	if !ok {
@@ -406,6 +415,30 @@ func (c *ContractBinding) GetNonce(ctx context.Context, sender common.Address, k
 	}
 
 	return nonce, nil
+}
+
+// GetAccountAddress call getAddress from smart contract and return address
+func (c *ContractBinding) GetAccountAddress(ctx context.Context, owner common.Address, key *big.Int) (string, error) {
+	// Compile ABI
+	contractABI, err := abi.JSON(strings.NewReader(c.ABI))
+	if err != nil {
+		return "", err
+	}
+
+	// Encode input of getNonce
+	input, err := contractABI.Pack("getAddress", owner, key)
+	if err != nil {
+		return "", err
+	}
+
+	// call via JSON-RPC
+	var result string
+	result, err = c.getDataFromContract(ctx, input)
+	if err != nil {
+		return "", err
+	}
+
+	return result, nil
 }
 
 func (c *ContractBinding) GetInitCode(ctx context.Context, sender common.Address, key *big.Int) ([]byte, error) {
@@ -429,9 +462,7 @@ func (c *ContractBinding) GetInitCode(ctx context.Context, sender common.Address
 		fmt.Println("Error decoding initCode:", err)
 		return nil, err
 	}
-	fmt.Println("input: ", input, hex.EncodeToString(input), initCodeBytes)
-	fmt.Println("Address: ", c.Address.Hex())
-	fmt.Println("initCode: ", initCode)
+
 	return initCodeBytes, nil
 }
 
