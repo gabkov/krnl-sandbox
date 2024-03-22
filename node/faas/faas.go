@@ -76,6 +76,8 @@ func CallService(faas string, tx *types.Transaction) error {
 		return elKYT(tx)
 	case "KYT_AA":
 		return kytAA(tx)
+	case "KYT_AA_GC":
+		return kytAAGC(tx)
 	default:
 		log.Println("Unknown function name: ", faas)
 		return nil
@@ -146,9 +148,10 @@ func kytAA(tx *types.Transaction) error {
 
 	// caculate account address
 	factoryAddress := common.HexToAddress(os.Getenv("STACKUP_ACCOUNT_FACTORY_ADDRESS"))
-	accountAddress := getCreate2Address(factoryAddress, from, big.NewInt(0))
+	key := big.NewInt(2)
+	accountAddress := getCreate2Address(factoryAddress, from, key)
 	// gen initCode
-	initCode := createInitCode(factoryAddress, from, big.NewInt(0))
+	initCode := createInitCode(factoryAddress, from, key)
 
 	//get nonce
 	entryPointAddress := common.HexToAddress(os.Getenv("STACKUP_ENTRYPOINT_ADDRESS"))
@@ -203,9 +206,14 @@ func kytAA(tx *types.Transaction) error {
 	if err != nil {
 		fmt.Println("Error signing message:", err)
 	}
-	tmpSignature := "0xa59b381ebead96fb15156745b70d3c69a3b11f9c9aa1be78a074d66a854df7df2aa0757868b62657526161774cd8cdd6468b2fbd78eddbc3198eecfa12dc12581c"
+	tmpSignature := "0x8a878906ced255267d7e06463c6dc883024eb67558fb4f8ae399fecd6755b6494874d8391e4c85f5773ab23d0d886ac5014d23eed3d41c983c694b346e077b481b"
 	byteData, err := hex.DecodeString(tmpSignature[2:])
 	fmt.Println("signature:", signature)
+	fmt.Println("byteData:", byteData)
+	fmt.Println("signatureHash:", signatureHash)
+	signature[crypto.RecoveryIDOffset] += 27
+	fmt.Println("signature:", signature)
+	fmt.Println("signature:", hexutil.Encode(signature))
 	//op.Signature = signature
 	op.Signature = byteData
 
@@ -288,6 +296,55 @@ func kytAA(tx *types.Transaction) error {
 				return nil
 			}
 		}
+	}
+
+	return nil
+}
+
+func kytAAGC(tx *types.Transaction) error {
+	from, err := types.Sender(types.LatestSignerForChainID(tx.ChainId()), tx)
+	if err != nil {
+		log.Fatal("Could not get sender")
+	}
+	sender := from.Hex()
+	fmt.Println("sender: ", sender)
+
+	//gitcoin GitcoinPassportDecoder ABI
+	entryPointABI := `[{"inputs":[{"internalType":"address","name":"user","type":"address"}],"name":"getPassport","outputs":[{"components":[{"internalType":"string","name":"provider","type":"string"},{"internalType":"bytes32","name":"hash","type":"bytes32"},{"internalType":"uint64","name":"time","type":"uint64"},{"internalType":"uint64","name":"expirationTime","type":"uint64"}],"internalType":"struct Credential[]","name":"","type":"tuple[]"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"user","type":"address"}],"name":"getScore","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"user","type":"address"}],"name":"isHuman","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"}]`
+
+	//make client instance
+	client := dialToChain(os.Getenv("SEPOLIA_RPC_ENDPOINT"))
+
+	//set contract binding
+	contractBinding := ContractBinding{
+		Address: common.HexToAddress(os.Getenv("GITCOIN_PASSPORT_DECODER")),
+		ABI:     entryPointABI,
+		Client:  client,
+	}
+	//context
+	ctx := context.Background()
+	//get gitcoin passport
+	passport, err := contractBinding.getPassport(ctx, from)
+	if err != nil {
+		//return err
+	}
+	//get gitcoin score
+	score, err := contractBinding.getScore(ctx, from)
+	if err != nil {
+		return err
+	}
+
+	//get gitcoin isHuman
+	isHuman, err := contractBinding.getIsHuman(ctx, from)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("passport: ", passport)
+	fmt.Println("score: ", score)
+	fmt.Println("isHuman: ", isHuman)
+	if score.Cmp(big.NewInt(1)) < 0 || !isHuman {
+		return errors.New("You do not meet the condition of gitcoin.")
 	}
 
 	return nil
@@ -599,4 +656,110 @@ func getMaxFeePerGas() *big.Int {
 	}
 
 	return baseFeeBigInt
+}
+
+func getPassport(client *etrpc.Client, ctx context.Context, factoryAddress, accountAddress common.Address) common.Address {
+	entryPointABI := `[{"inputs":[{"internalType":"contract IEntryPoint","name":"_entryPoint","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},{"inputs":[],"name":"accountImplementation","outputs":[{"internalType":"contract SimpleAccount","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"owner","type":"address"},{"internalType":"uint256","name":"salt","type":"uint256"}],"name":"createAccount","outputs":[{"internalType":"contract SimpleAccount","name":"ret","type":"address"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"owner","type":"address"},{"internalType":"uint256","name":"salt","type":"uint256"}],"name":"getAddress","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"}]`
+
+	contractBinding := ContractBinding{
+		Address: factoryAddress,
+		ABI:     entryPointABI,
+		Client:  client,
+	}
+
+	// Call GetInitCode
+	address, err := contractBinding.getPassport(ctx, accountAddress)
+	if err != nil {
+		log.Fatal("Failed to get address:", err)
+	}
+
+	// Return the address
+	return common.HexToAddress(address)
+}
+
+// getPassport call getPassport from smart contract
+func (c *ContractBinding) getPassport(ctx context.Context, accountAddress common.Address) (string, error) {
+	// Compile ABI
+	contractABI, err := abi.JSON(strings.NewReader(c.ABI))
+	if err != nil {
+		return "", err
+	}
+
+	// Encode input of getNonce
+	input, err := contractABI.Pack("getPassport", accountAddress)
+	if err != nil {
+		return "", err
+	}
+
+	// call via JSON-RPC
+	var result string
+	result, err = c.getDataFromContract(ctx, input)
+	if err != nil {
+		return "", err
+	}
+
+	return result, nil
+}
+
+// getScore call getScore from smart contract
+func (c *ContractBinding) getScore(ctx context.Context, accountAddress common.Address) (*big.Int, error) {
+	// Compile ABI
+	contractABI, err := abi.JSON(strings.NewReader(c.ABI))
+	if err != nil {
+		return nil, err
+	}
+
+	// Encode input of getNonce
+	input, err := contractABI.Pack("getScore", accountAddress)
+	if err != nil {
+		return nil, err
+	}
+
+	// call via JSON-RPC
+	var result string
+	result, err = c.getDataFromContract(ctx, input)
+	if err != nil {
+		return nil, err
+	}
+
+	//convert hexstring to big int
+	bigInt := new(big.Int)
+	score, success := bigInt.SetString(result, 0)
+	if !success {
+		return nil, errors.New("Can't convert hex string to big.Int")
+	}
+
+	return score, nil
+}
+
+// getIsHuman call isHuman from smart contract
+func (c *ContractBinding) getIsHuman(ctx context.Context, accountAddress common.Address) (bool, error) {
+	// Compile ABI
+	contractABI, err := abi.JSON(strings.NewReader(c.ABI))
+	if err != nil {
+		return false, err
+	}
+
+	// Encode input of getNonce
+	input, err := contractABI.Pack("isHuman", accountAddress)
+	if err != nil {
+		return false, err
+	}
+
+	// call via JSON-RPC
+	var result string
+	result, err = c.getDataFromContract(ctx, input)
+	if err != nil {
+		return false, err
+	}
+
+	//convert hexstring to big int
+	bigInt := new(big.Int)
+	tmpIsHuman, success := bigInt.SetString(result, 0)
+	if !success {
+		return false, errors.New("Can't convert hex string to big.Int")
+	}
+
+	isHuman := tmpIsHuman.Cmp(big.NewInt(0)) != 0
+	return isHuman, nil
 }
