@@ -3,6 +3,7 @@ package faas
 import (
 	"bytes"
 	"context"
+	"crypto/ecdsa"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -13,9 +14,6 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"time"
-
-	"github.com/gabkov/krnl-node/build/contracts/krnldapp"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -66,8 +64,13 @@ type AABundlerParams struct {
 	Params  []interface{} `json:"params"`
 }
 
-func CallService(faas string, tx *types.Transaction) error {
-	switch strings.TrimSpace(faas) {
+func CallService(inputFaas string, tx *types.Transaction) error {
+	faas := strings.Split(strings.TrimSpace(inputFaas), "|")
+	seed := ""
+	if len(faas) > 1 {
+		seed = faas[1]
+	}
+	switch faas[0] {
 	case "KYC":
 		return kyc(tx)
 	case "KYT":
@@ -75,7 +78,7 @@ func CallService(faas string, tx *types.Transaction) error {
 	case "EL_KYT":
 		return elKYT(tx)
 	case "KYT_AA":
-		return kytAA(tx)
+		return kytAA(tx, seed)
 	case "KYT_AA_GC":
 		return kytAAGC(tx)
 	default:
@@ -138,17 +141,32 @@ func elKYT(tx *types.Transaction) error {
 	return errors.New("EL KYT failed for address " + from.Hex())
 }
 
-func kytAA(tx *types.Transaction) error {
+func kytAA(tx *types.Transaction, seed string) error {
 	from, err := types.Sender(types.LatestSignerForChainID(tx.ChainId()), tx)
 	if err != nil {
-		log.Fatal("Could not get sender")
+		return errors.New("Could not get sender")
 	}
 	sender := from.Hex()
 	fmt.Println("sender: ", sender)
 
+	//fake privateKey
+	privateKey, err := crypto.HexToECDSA("ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80")
+	if err != nil {
+		return err
+	}
+
+	num := new(big.Int)
+	key, ok := num.SetString(seed, 16)
+	if !ok {
+		return errors.New("Seed wrong format!")
+	}
+
+	fmt.Println("privateKey: ", privateKey)
+	fmt.Println("key: ", key)
+
 	// caculate account address
 	factoryAddress := common.HexToAddress(os.Getenv("STACKUP_ACCOUNT_FACTORY_ADDRESS"))
-	key := big.NewInt(2)
+
 	accountAddress := getCreate2Address(factoryAddress, from, key)
 	// gen initCode
 	initCode := createInitCode(factoryAddress, from, key)
@@ -189,33 +207,20 @@ func kytAA(tx *types.Transaction) error {
 		log.Fatal("Failed to create UserOperation:", err)
 	}
 
-	//get signature
-
-	fmt.Println("11155420: ", big.NewInt(11155420))
-	signatureHash := op.GetUserOpHash(entryPointAddress, big.NewInt(11155420))
+	chainId := big.NewInt(11155420) //11155420 optimism-sepolia chain id
+	signatureHash := op.GetUserOpHash(entryPointAddress, chainId)
 	userOpHash := signatureHash.Bytes()
-	// sender PK
-	privateKeyHex := "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
-	// Gen ECDSA from private key
-	privateKey, err := crypto.HexToECDSA(privateKeyHex)
-	if err != nil {
-		log.Fatal("Error converting private key:", err)
-	}
 
-	signature, err := crypto.Sign(userOpHash, privateKey)
+	//rebuild sign hash
+	signHash := signHash(userOpHash)
+	signature, err := crypto.Sign(signHash.Bytes(), privateKey)
 	if err != nil {
 		fmt.Println("Error signing message:", err)
+		return err
 	}
-	tmpSignature := "0x8a878906ced255267d7e06463c6dc883024eb67558fb4f8ae399fecd6755b6494874d8391e4c85f5773ab23d0d886ac5014d23eed3d41c983c694b346e077b481b"
-	byteData, err := hex.DecodeString(tmpSignature[2:])
-	fmt.Println("signature:", signature)
-	fmt.Println("byteData:", byteData)
-	fmt.Println("signatureHash:", signatureHash)
+	//change recovery id offset from 0 | 1 -> 27|28
 	signature[crypto.RecoveryIDOffset] += 27
-	fmt.Println("signature:", signature)
-	fmt.Println("signature:", hexutil.Encode(signature))
-	//op.Signature = signature
-	op.Signature = byteData
+	op.Signature = signature
 
 	aaBundlerParams := AABundlerParams{
 		Jsonrpc: "2.0",
@@ -231,7 +236,7 @@ func kytAA(tx *types.Transaction) error {
 	jsonData, err = json.MarshalIndent(aaBundlerParams, "", "\t")
 	if err != nil {
 		fmt.Println("Error Marshal AABundler JSON:", err)
-		return nil
+		return err
 	}
 
 	fmt.Println("jsonData: ", string(jsonData))
@@ -245,58 +250,7 @@ func kytAA(tx *types.Transaction) error {
 	if err := json.Unmarshal(txSendUserOpResponseBytes, &txSendUserOpResponse); err != nil {
 		return errors.New("Request to AA Bundler failed")
 	}
-	// listen for the event from KrnlContract, here is GetCounter
-	// if yes, go through
-	sepoliaClient := client.GetWsClient()
-
-	// load Krnl contract
-	krnlAddr := common.HexToAddress("0x20Ed044884D83787368861C4F987D9ed7e8Aa8A1")
-	krnlContract, err := krnldapp.NewKrnldapp(krnlAddr, sepoliaClient)
-	if err != nil {
-		return err
-	}
-	krnlContractAbi, err := abi.JSON(strings.NewReader(string(krnldapp.KrnldappABI)))
-	if err != nil {
-		return err
-	}
-
-	_ = krnlContract
-
-	query := ethereum.FilterQuery{
-		Addresses: []common.Address{krnlAddr},
-	}
-
-	logs := make(chan types.Log)
-
-	sub, err := sepoliaClient.SubscribeFilterLogs(context.Background(), query, logs)
-	if err != nil {
-		return err
-	}
-
-	// checking log for 30s
-	for start := time.Now().Add(10 * time.Second); time.Since(start) < time.Second; {
-		select {
-		case err := <-sub.Err():
-			return err
-		case vLog := <-logs:
-			event := struct {
-				From    common.Address
-				Counter *big.Int
-			}{}
-			err := krnlContractAbi.UnpackIntoInterface(&event, "GetCounter", vLog.Data)
-			if err != nil {
-				return err
-			}
-
-			log.Printf("Receive %v with value %v", event.From.String(), event.Counter)
-
-			if event.Counter.Cmp(big.NewInt(10)) <= 0 {
-				return errors.New("KYT_AA failed for address " + from.Hex())
-			} else {
-				return nil
-			}
-		}
-	}
+	fmt.Println("txSendUserOpResponse: ", txSendUserOpResponse)
 
 	return nil
 }
@@ -762,4 +716,43 @@ func (c *ContractBinding) getIsHuman(ctx context.Context, accountAddress common.
 
 	isHuman := tmpIsHuman.Cmp(big.NewInt(0)) != 0
 	return isHuman, nil
+}
+
+func signHash(data []byte) common.Hash {
+	msg := fmt.Sprintf("\x19Ethereum Signed Message:\n%d%s", len(data), data)
+	return crypto.Keccak256Hash([]byte(msg))
+}
+
+func getKytAAParam(tx *types.Transaction) (*ecdsa.PrivateKey, *big.Int, error) {
+	separator := "000000000000000000000000000000000000000000000000000000000000003a" // :
+	res := strings.Split(hexutil.Encode(tx.Data()), separator)
+	if len(res) < 3 {
+		return nil, nil, errors.New("Not enough parameters")
+	}
+	fmt.Println("res0: ", res[0])
+	fmt.Println("res1: ", res[1])
+	fmt.Println("res2: ", res[2])
+	//fake privateKey
+	tmpSeed, err := hex.DecodeString(res[2])
+	if err != nil {
+		fmt.Println("err1: ", err)
+		return nil, nil, err
+	}
+	res[3] = string(bytes.Trim(tmpSeed, "\x00"))
+	res[2] = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+	fmt.Println("res: ", res)
+	// Gen ECDSA from private key
+	privateKey, err := crypto.HexToECDSA("ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80")
+	if err != nil {
+		return nil, nil, err
+	}
+
+	num := new(big.Int)
+	seed, ok := num.SetString(res[3], 16)
+	if !ok {
+		return nil, nil, errors.New("Seed wrong format!")
+	}
+	fmt.Println("seed: ", res[3])
+
+	return privateKey, seed, nil
 }
